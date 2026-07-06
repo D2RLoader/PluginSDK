@@ -1,0 +1,8 @@
+# Config File Sample Plugin
+#
+# D2RLoader gives each plugin a config path based on its plugin id.
+# This example is copied to d2rloader/config/config-file-sample.toml.
+
+[config-file-sample]
+enabled = true
+message = "Hello from config-file-sample.toml"

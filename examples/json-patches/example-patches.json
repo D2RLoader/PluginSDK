@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "name": "Example Patches",
+  "description": "Example patches that write the same bytes already present in the target image.",
+  "patches": [
+    {
+      "description": "Write five INT3 padding bytes.",
+      "op": "bytes",
+      "rva": "0x00003601",
+      "expected": "CC CC CC CC CC",
+      "bytes": "CC CC CC CC CC"
+    },
+    {
+      "description": "Fill four INT3 padding bytes.",
+      "op": "fill",
+      "rva": "0x00003454",
+      "size": 4,
+      "value": "0xCC",
+      "expected": "CC CC CC CC"
+    },
+    {
+      "description": "NOP five bytes that are already NOPs.",
+      "op": "nop",
+      "rva": "0x0041088A",
+      "size": 5,
+      "expected": "90 90 90 90 90"
+    },
+    {
+      "description": "Write one INT3 byte.",
+      "op": "write-u8",
+      "rva": "0x00003963",
+      "value": "0xCC",
+      "expected": "CC"
+    },
+    {
+      "description": "Write one 16-bit INT3 padding value.",
+      "op": "write-u16",
+      "rva": "0x00003964",
+      "value": "0xCCCC",
+      "expected": "CC CC"
+    },
+    {
+      "description": "Write one 32-bit INT3 padding value.",
+      "op": "write-u32",
+      "rva": "0x00003966",
+      "value": "0xCCCCCCCC",
+      "expected": "CC CC CC CC"
+    },
+    {
+      "description": "Write one 64-bit NOP padding value.",
+      "op": "write-u64",
+      "rva": "0x0065118E",
+      "value": "0x9090909090909090",
+      "expected": "90 90 90 90 90 90 90 90"
+    },
+    {
+      "description": "Recreate an existing near jump with the same target.",
+      "op": "jmp-rel32",
+      "rva": "0x00002716",
+      "targetRva": "0x0000289E",
+      "expected": "E9 83 01 00 00"
+    },
+    {
+      "description": "Recreate an existing call with the same target.",
+      "op": "call-rel32",
+      "rva": "0x0002EB5B",
+      "targetRva": "0x00079CD0",
+      "expected": "E8 70 B1 04 00"
+    }
+  ]
+}
