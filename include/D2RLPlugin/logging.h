@@ -35,7 +35,7 @@ inline void LogV(const PluginContext* ctx, LogFn log, const char* format, va_lis
 }
 
 inline void LogInfoF(const PluginContext* ctx, const char* format, ...) noexcept {
-	va_list args;
+	va_list args {};
 	va_start(args, format);
 	const PluginApi* api = GetApi(ctx);
 	LogV(ctx, ApiLogInfo(api), format, args);
@@ -43,7 +43,7 @@ inline void LogInfoF(const PluginContext* ctx, const char* format, ...) noexcept
 }
 
 inline void LogWarnF(const PluginContext* ctx, const char* format, ...) noexcept {
-	va_list args;
+	va_list args {};
 	va_start(args, format);
 	const PluginApi* api = GetApi(ctx);
 	LogV(ctx, ApiLogWarn(api), format, args);
@@ -51,7 +51,7 @@ inline void LogWarnF(const PluginContext* ctx, const char* format, ...) noexcept
 }
 
 inline void LogErrorF(const PluginContext* ctx, const char* format, ...) noexcept {
-	va_list args;
+	va_list args {};
 	va_start(args, format);
 	const PluginApi* api = GetApi(ctx);
 	LogV(ctx, ApiLogError(api), format, args);

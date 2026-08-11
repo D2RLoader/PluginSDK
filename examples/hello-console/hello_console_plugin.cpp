@@ -8,7 +8,7 @@ static constexpr D2RL::PluginInfo HelloPluginInfo {
 	.version     = "0.1.0",
 	.author      = "D2RLoader",
 	.description = "Small D2RLoader SDK example.",
-	.flags       = D2RL::PluginFlags::None,
+	.flags       = D2RL::PluginFlags::Shared,
 };
 
 static auto HelloCommand(D2R::Game::Client* client, const D2RL::ConsoleCommandContext* command, void* userData) noexcept -> D2RL::ConsoleCommandResult {

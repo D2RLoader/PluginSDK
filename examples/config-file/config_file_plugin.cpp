@@ -4,13 +4,6 @@
 #include <cstdint>
 #include <cstdio>
 
-static constexpr char DefaultConfig[] = R"toml(# Config File Sample Plugin
-
-[config-file-sample]
-enabled = true
-message = "Hello from config-file-sample.toml"
-)toml";
-
 static constexpr D2RL::PluginInfo ConfigFilePluginInfo {
 	.infoSize    = D2RL::PluginInfoSize,
 	.apiVersion  = D2RL_PLUGIN_API_VERSION,
@@ -19,7 +12,7 @@ static constexpr D2RL::PluginInfo ConfigFilePluginInfo {
 	.version     = "0.1.0",
 	.author      = "D2RLoader",
 	.description = "Shows plugin-owned TOML config helpers.",
-	.flags       = D2RL::PluginFlags::None,
+	.flags       = D2RL::PluginFlags::Shared,
 };
 
 static constexpr auto ByteSize(std::size_t size) noexcept -> std::uint32_t {
@@ -31,11 +24,6 @@ static auto ConfigCommand(D2R::Game::Client* client, const D2RL::ConsoleCommandC
 	(void)userData;
 
 	if (command == nullptr || command->plugin == nullptr) {
-		return D2RL::ConsoleCommandResult::Failed;
-	}
-
-	if (!command->plugin->EnsureConfig(DefaultConfig)) {
-		command->plugin->WriteConsoleError("config-file-sample could not create its config file.");
 		return D2RL::ConsoleCommandResult::Failed;
 	}
 
@@ -58,11 +46,6 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderGetPluginInfo() noexcept -> const D2RL::PluginI
 
 D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) noexcept -> bool {
 	if (context == nullptr) {
-		return false;
-	}
-
-	if (!context->EnsureConfig(DefaultConfig)) {
-		context->LogError("config file sample could not create its config file.");
 		return false;
 	}
 
