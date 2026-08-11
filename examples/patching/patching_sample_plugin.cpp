@@ -2,14 +2,14 @@
 #include <cstddef>
 #include <cstdint>
 
-// These memory patch examples write the bytes already present in the image.
+// These examples intentionally write the bytes already present in the image.
 static constexpr bool ApplyMemoryPatchExamples = true;
 
-// Native hooks redirect game code into plugin code. Keep this false unless you are testing hooks.
-// PatchingSampleFlags below adds D2RL::PluginFlags::NativeHooks when this is enabled.
+// Leave this false unless you are testing hooks. Enabling it also adds
+// D2RL::PluginFlags::NativeHooks through PatchingSampleFlags below.
 static constexpr bool InstallNativeHookExample = false;
 
-static constexpr D2RL::PluginFlags PatchingSampleFlags = InstallNativeHookExample ? D2RL::PluginFlags::NativeHooks : D2RL::PluginFlags::None;
+static constexpr D2RL::PluginFlags PatchingSampleFlags = D2RL::PluginFlags::Shared | (InstallNativeHookExample ? D2RL::PluginFlags::NativeHooks : D2RL::PluginFlags::None);
 
 using GetVisibleLineCountFn = std::uint32_t(__fastcall*)() noexcept;
 using MemoryPatchExampleFn  = bool (*)(const D2RL::PluginContext*) noexcept;
@@ -174,7 +174,7 @@ static auto ApplyPatchExamples(const D2RL::PluginContext* context) noexcept -> b
 		return false;
 	}
 
-	// Check every target first. If one expected byte range is wrong, do not partially patch.
+	// Check every target before writing anything. One mismatch cancels the group.
 	if (!VerifyPatchInputs(context)) {
 		context->LogError("One or more memory patch expected byte ranges did not match.");
 		return false;
@@ -195,9 +195,38 @@ static auto InstallHookExample(const D2RL::PluginContext* context) noexcept -> b
 		return false;
 	}
 
-	// This example calls the original trampoline and returns the original result.
+	// Keep the original behavior by calling the trampoline and returning its result.
 	const std::uint32_t expectedSize = ByteCount(ExpectedGetVisibleLineCount);
 	return context->InstallInlineHook(GetVisibleLineCountRva, ExpectedGetVisibleLineCount, expectedSize, HookGetVisibleLineCount, &OriginalGetVisibleLineCount);
+}
+
+static auto ReportPatchDiagnostic(const D2RL::PluginContext* context) noexcept -> bool {
+	const D2RL::DiagnosticsServiceV1* diagnostics = nullptr;
+	if (context->QueryService(D2RL::ServiceId::Diagnostics, D2RL::DiagnosticsServiceV1Version, &diagnostics) != D2RL::ServiceQueryResult::Success) {
+		return false;
+	}
+
+	if (!D2RL::HasDiagnosticsServiceV1Field(diagnostics, D2RL::DiagnosticsServiceV1RequiredSize)) {
+		return false;
+	}
+	const D2RL::Diagnostics::HookQuery query {
+		.structSize   = D2RL::Diagnostics::HookQuerySize,
+		.rva          = InstallNativeHookExample ? GetVisibleLineCountRva : ExpectedPatchRanges[0].rva,
+		.expected     = InstallNativeHookExample ? static_cast<const void*>(ExpectedGetVisibleLineCount) : ExpectedPatchRanges[0].bytes,
+		.expectedSize = InstallNativeHookExample ? ByteCount(ExpectedGetVisibleLineCount) : ExpectedPatchRanges[0].size,
+	};
+	D2RL::Diagnostics::HookStatus status {
+		.structSize = D2RL::Diagnostics::HookStatusSize,
+	};
+	if (diagnostics->queryHookStatus(context, &query, &status) != D2RL::Diagnostics::Result::Success) {
+		return false;
+	}
+	switch (status.state) {
+		case D2RL::Diagnostics::ModificationState::Unchanged: context->LogInfo("Diagnostics reports the harmless same-byte patch as unchanged."); break;
+		case D2RL::Diagnostics::ModificationState::Tracked:   context->LogInfo("Diagnostics reports the enabled native hook as loader-tracked."); break;
+		case D2RL::Diagnostics::ModificationState::Untracked: context->LogWarn("Diagnostics found an untracked change in the sample range."); break;
+	}
+	return true;
 }
 
 D2RL_PLUGIN_EXPORT auto D2RLoaderGetPluginInfo() noexcept -> const D2RL::PluginInfo* {
@@ -233,6 +262,10 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) 
 		context->LogInfo("Native hook example installed.");
 	} else {
 		context->LogInfo("Native hook example is disabled in source.");
+	}
+
+	if (!ReportPatchDiagnostic(context)) {
+		context->LogWarn("The diagnostics service could not inspect the sample range.");
 	}
 
 	return true;

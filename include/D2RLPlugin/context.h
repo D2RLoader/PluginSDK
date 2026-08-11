@@ -4,6 +4,8 @@
 #include <D2RLPlugin/hooks.h>
 #include <D2RLPlugin/lifecycle.h>
 #include <D2RLPlugin/patching.h>
+#include <D2RLPlugin/services.h>
+#include <cstddef>
 #include <cstdint>
 #include <type_traits>
 
@@ -40,12 +42,23 @@ struct PluginApi {
 	WriteConsoleMessageFn    writeConsoleMessage;
 	InstallInlineHookFn      installInlineHook;
 	uintptr_t                reserved3[4];
+	QueryServiceFn           queryService;
 };
 
-inline constexpr uint32_t PluginApiSize = static_cast<uint32_t>(sizeof(PluginApi));
+inline constexpr uint32_t PluginApiV2Size           = static_cast<uint32_t>(offsetof(PluginApi, queryService));
+inline constexpr uint32_t PluginApiQueryServiceSize = static_cast<uint32_t>(offsetof(PluginApi, queryService) + sizeof(QueryServiceFn));
+inline constexpr uint32_t PluginApiSize             = static_cast<uint32_t>(sizeof(PluginApi));
+
+static_assert(sizeof(void*) == 8);
+static_assert(PluginApiV2Size == 216);
+static_assert(PluginApiSize == 224);
+
+inline auto HasPluginApiField(const PluginApi* api, uint32_t fieldEndOffset) noexcept -> bool {
+	return api != nullptr && api->apiSize >= fieldEndOffset;
+}
 
 inline auto HasApi(const PluginApi* api) noexcept -> bool {
-	return api != nullptr && api->apiSize >= PluginApiSize;
+	return HasPluginApiField(api, PluginApiSize);
 }
 
 inline auto ApiLogInfo(const PluginApi* api) noexcept -> LogFn {
@@ -104,8 +117,12 @@ inline auto ApiInstallInlineHook(const PluginApi* api) noexcept -> InstallInline
 	return HasApi(api) ? api->installInlineHook : nullptr;
 }
 
-// Plugins receive this from D2RLoader during load. contextSize checks this
-// data block after apiVersion has already been accepted.
+inline auto ApiQueryService(const PluginApi* api) noexcept -> QueryServiceFn {
+	return HasPluginApiField(api, PluginApiQueryServiceSize) ? api->queryService : nullptr;
+}
+
+// D2RLoader passes this to the plugin during load. apiVersion has already been
+// accepted; use contextSize to check which fields are present.
 struct PluginContext {
 	uint32_t         contextSize;
 	uint32_t         apiVersion;
@@ -135,6 +152,34 @@ struct PluginContext {
 	auto GetApi() const noexcept -> const PluginApi* {
 		const auto currentContextSize = static_cast<uint32_t>(sizeof(PluginContext));
 		return contextSize >= currentContextSize && HasApi(api) ? api : nullptr;
+	}
+
+	[[nodiscard]]
+	auto QueryService(ServiceId serviceId, uint32_t serviceVersion, const void** service) const noexcept -> ServiceQueryResult {
+		if (service == nullptr) {
+			return ServiceQueryResult::InvalidArgument;
+		}
+
+		*service                   = nullptr;
+		const QueryServiceFn query = ApiQueryService(GetApi());
+		return query != nullptr ? query(this, serviceId, serviceVersion, service) : ServiceQueryResult::Unavailable;
+	}
+
+	template <typename Service>
+	[[nodiscard]]
+	auto QueryService(ServiceId serviceId, uint32_t serviceVersion, const Service** service) const noexcept -> ServiceQueryResult {
+		static_assert(!std::is_void_v<Service>);
+		if (service == nullptr) {
+			return ServiceQueryResult::InvalidArgument;
+		}
+
+		*service                        = nullptr;
+		const void*              raw    = nullptr;
+		const ServiceQueryResult result = QueryService(serviceId, serviceVersion, &raw);
+		if (result == ServiceQueryResult::Success) {
+			*service = static_cast<const Service*>(raw);
+		}
+		return result;
 	}
 
 	void LogInfo(const char* message) const noexcept {
@@ -295,6 +340,7 @@ struct PluginContext {
 		if (!InstallInlineHook(rva, expected, expectedSize, targetAddress, originalOutput)) {
 			return false;
 		}
+
 		if (original != nullptr) {
 			*original = reinterpret_cast<Function>(originalAddress);
 		}
@@ -310,6 +356,30 @@ inline auto HasContext(const PluginContext* ctx) noexcept -> bool {
 
 inline auto GetApi(const PluginContext* ctx) noexcept -> const PluginApi* {
 	return HasContext(ctx) ? ctx->GetApi() : nullptr;
+}
+
+inline auto QueryService(const PluginContext* ctx, ServiceId serviceId, uint32_t serviceVersion, const void** service) noexcept -> ServiceQueryResult {
+	if (ctx == nullptr) {
+		if (service != nullptr) {
+			*service = nullptr;
+		}
+		return ServiceQueryResult::InvalidArgument;
+	}
+
+	return ctx->QueryService(serviceId, serviceVersion, service);
+}
+
+template <typename Service>
+inline auto QueryService(const PluginContext* ctx, ServiceId serviceId, uint32_t serviceVersion, const Service** service) noexcept -> ServiceQueryResult {
+	static_assert(!std::is_void_v<Service>);
+	if (ctx == nullptr) {
+		if (service != nullptr) {
+			*service = nullptr;
+		}
+		return ServiceQueryResult::InvalidArgument;
+	}
+
+	return ctx->QueryService(serviceId, serviceVersion, service);
 }
 
 inline auto PatchBytes(const PluginContext* ctx, uint64_t rva, const void* expected, uint32_t expectedSize, const void* bytes, uint32_t size) noexcept -> bool {
