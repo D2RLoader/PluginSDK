@@ -202,8 +202,11 @@ static auto InstallHookExample(const D2RL::PluginContext* context) noexcept -> b
 
 static auto ReportPatchDiagnostic(const D2RL::PluginContext* context) noexcept -> bool {
 	const D2RL::DiagnosticsServiceV1* diagnostics = nullptr;
-	if (context->QueryService(D2RL::ServiceId::Diagnostics, D2RL::DiagnosticsServiceV1Version, &diagnostics) != D2RL::ServiceQueryResult::Success
-	    || !D2RL::HasDiagnosticsServiceV1Field(diagnostics, D2RL::DiagnosticsServiceV1RequiredSize)) {
+	if (context->QueryService(D2RL::ServiceId::Diagnostics, D2RL::DiagnosticsServiceV1Version, &diagnostics) != D2RL::ServiceQueryResult::Success) {
+		return false;
+	}
+
+	if (!D2RL::HasDiagnosticsServiceV1Field(diagnostics, D2RL::DiagnosticsServiceV1RequiredSize)) {
 		return false;
 	}
 	const D2RL::Diagnostics::HookQuery query {
@@ -260,6 +263,7 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) 
 	} else {
 		context->LogInfo("Native hook example is disabled in source.");
 	}
+
 	if (!ReportPatchDiagnostic(context)) {
 		context->LogWarn("The diagnostics service could not inspect the sample range.");
 	}

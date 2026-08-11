@@ -158,7 +158,15 @@ inline auto HasRowViewField(const RowView* view, uint32_t fieldEndOffset) noexce
 
 template <typename Row>
 inline auto Rows(const TableView* view) noexcept -> std::span<const Row> {
-	if (!HasTableViewField(view, TableViewRequiredSize) || view->rowSize != sizeof(Row) || (view->rowCount != 0 && view->rows == nullptr)) {
+	if (!HasTableViewField(view, TableViewRequiredSize)) {
+		return {};
+	}
+
+	if (view->rowSize != sizeof(Row)) {
+		return {};
+	}
+
+	if (view->rowCount != 0 && view->rows == nullptr) {
 		return {};
 	}
 

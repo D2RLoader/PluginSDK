@@ -340,6 +340,7 @@ struct PluginContext {
 		if (!InstallInlineHook(rva, expected, expectedSize, targetAddress, originalOutput)) {
 			return false;
 		}
+
 		if (original != nullptr) {
 			*original = reinterpret_cast<Function>(originalAddress);
 		}

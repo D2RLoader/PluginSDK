@@ -73,8 +73,19 @@ static auto ReportOffers(const D2RL::PluginContext* context) noexcept -> bool {
 		D2RL::CustomTables::TableInfo info {
 			.structSize = D2RL::CustomTables::TableInfoSize,
 		};
-		if (customTables->getTableInfo(context, offerTable, D2RL::CustomTables::TableBank::Rotw, &info) != D2RL::CustomTables::Result::Success || info.state != D2RL::CustomTables::TableState::Ready
-		    || info.rowSize != sizeof(OfferRow) || info.byteCount != static_cast<uint64_t>(info.rowCount) * sizeof(OfferRow)) {
+		if (customTables->getTableInfo(context, offerTable, D2RL::CustomTables::TableBank::Rotw, &info) != D2RL::CustomTables::Result::Success) {
+			return false;
+		}
+
+		if (info.state != D2RL::CustomTables::TableState::Ready) {
+			return false;
+		}
+
+		if (info.rowSize != sizeof(OfferRow)) {
+			return false;
+		}
+		const uint64_t expectedByteCount = static_cast<uint64_t>(info.rowCount) * sizeof(OfferRow);
+		if (info.byteCount != expectedByteCount) {
 			return false;
 		}
 
@@ -95,12 +106,32 @@ static auto ReportOffers(const D2RL::PluginContext* context) noexcept -> bool {
 	}
 }
 
+static void LogReadFailure(const D2RL::PluginContext* context) noexcept {
+	context->LogWarn("The data-tables sample could not read RotW Levels after the load completed.");
+}
+
 static void __cdecl OnDataTablesLoaded(const D2RL::PluginContext* context, const D2RL::Lifecycle::DataTablesLoadedEvent* event, void* /*userData*/) noexcept {
-	if (context == nullptr || dataTables == nullptr || customTables == nullptr || !D2RL::Lifecycle::HasDataTablesLoadedEventField(event, D2RL::Lifecycle::DataTablesLoadedEventRequiredSize)
-	    || !ReportLevels(context, event->revision) || !ReportOffers(context)) {
-		if (context != nullptr) {
-			context->LogWarn("The data-tables sample could not read RotW Levels after the load completed.");
-		}
+	if (context == nullptr) {
+		return;
+	}
+
+	if (dataTables == nullptr || customTables == nullptr) {
+		LogReadFailure(context);
+		return;
+	}
+
+	if (!D2RL::Lifecycle::HasDataTablesLoadedEventField(event, D2RL::Lifecycle::DataTablesLoadedEventRequiredSize)) {
+		LogReadFailure(context);
+		return;
+	}
+
+	if (!ReportLevels(context, event->revision)) {
+		LogReadFailure(context);
+		return;
+	}
+
+	if (!ReportOffers(context)) {
+		LogReadFailure(context);
 	}
 }
 
@@ -163,6 +194,7 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) 
 	if (lifecycleResult != D2RL::ServiceQueryResult::Success || lifecycle == nullptr) {
 		return false;
 	}
+
 	if (!D2RL::HasLifecycleServiceV1Field(lifecycle, D2RL::LifecycleServiceV1RequiredSize)) {
 		return false;
 	}

@@ -70,9 +70,23 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderGetPluginInfo() noexcept -> const D2RL::PluginI
 }
 
 D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) noexcept -> bool {
-	if (context == nullptr || context->QueryService(D2RL::ServiceId::Network, D2RL::NetworkServiceV1Version, &network) != D2RL::ServiceQueryResult::Success
-	    || context->QueryService(D2RL::ServiceId::Thread, D2RL::ThreadServiceV1Version, &threads) != D2RL::ServiceQueryResult::Success
-	    || !D2RL::HasNetworkServiceV1Field(network, D2RL::NetworkServiceV1RequiredSize) || !D2RL::HasThreadServiceV1Field(threads, D2RL::ThreadServiceV1RequiredSize)) {
+	if (context == nullptr) {
+		return false;
+	}
+
+	if (context->QueryService(D2RL::ServiceId::Network, D2RL::NetworkServiceV1Version, &network) != D2RL::ServiceQueryResult::Success) {
+		return false;
+	}
+
+	if (!D2RL::HasNetworkServiceV1Field(network, D2RL::NetworkServiceV1RequiredSize)) {
+		return false;
+	}
+
+	if (context->QueryService(D2RL::ServiceId::Thread, D2RL::ThreadServiceV1Version, &threads) != D2RL::ServiceQueryResult::Success) {
+		return false;
+	}
+
+	if (!D2RL::HasThreadServiceV1Field(threads, D2RL::ThreadServiceV1RequiredSize)) {
 		return false;
 	}
 	const D2RL::Network::ChannelRegistration registration {
@@ -83,8 +97,10 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) 
 		.clientMessage      = OnClientMessage,
 		.connectionState    = OnConnectionState,
 	};
-	return network->registerChannel(context, &registration, &channel) == D2RL::Network::Result::Success
-	    && context->RegisterConsoleCommand("network-sample-ping", NetworkPingCommand, "Connect the sample channel and send a ping.");
+	if (network->registerChannel(context, &registration, &channel) != D2RL::Network::Result::Success) {
+		return false;
+	}
+	return context->RegisterConsoleCommand("network-sample-ping", NetworkPingCommand, "Connect the sample channel and send a ping.");
 }
 
 D2RL_PLUGIN_EXPORT void D2RLoaderUnloadPlugin() noexcept {}

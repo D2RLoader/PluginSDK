@@ -62,9 +62,23 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderGetPluginInfo() noexcept -> const D2RL::PluginI
 
 D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) noexcept -> bool {
 	const D2RL::ResourceServiceV1* resources = nullptr;
-	if (context == nullptr || context->QueryService(D2RL::ServiceId::Resource, D2RL::ResourceServiceV1Version, &resources) != D2RL::ServiceQueryResult::Success
-	    || context->QueryService(D2RL::ServiceId::Panel, D2RL::PanelServiceV1Version, &panels) != D2RL::ServiceQueryResult::Success
-	    || !D2RL::HasResourceServiceV1Field(resources, D2RL::ResourceServiceV1RequiredSize) || !D2RL::HasPanelServiceV1Field(panels, D2RL::PanelServiceV1RequiredSize)) {
+	if (context == nullptr) {
+		return false;
+	}
+
+	if (context->QueryService(D2RL::ServiceId::Resource, D2RL::ResourceServiceV1Version, &resources) != D2RL::ServiceQueryResult::Success) {
+		return false;
+	}
+
+	if (!D2RL::HasResourceServiceV1Field(resources, D2RL::ResourceServiceV1RequiredSize)) {
+		return false;
+	}
+
+	if (context->QueryService(D2RL::ServiceId::Panel, D2RL::PanelServiceV1Version, &panels) != D2RL::ServiceQueryResult::Success) {
+		return false;
+	}
+
+	if (!D2RL::HasPanelServiceV1Field(panels, D2RL::PanelServiceV1RequiredSize)) {
 		return false;
 	}
 	const D2RL::Resources::ResourceRegistration resource {
@@ -82,8 +96,10 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) 
 		.flags      = D2RL::Panels::PanelFlags::CloseOnEscape,
 		.localId    = "SamplePanel",
 	};
-	return panels->registerPanel(context, &registration, &panel) == D2RL::Panels::Result::Success
-	    && context->RegisterConsoleCommand("ui-panel-sample", TogglePanelCommand, "Toggle the SDK sample panel.");
+	if (panels->registerPanel(context, &registration, &panel) != D2RL::Panels::Result::Success) {
+		return false;
+	}
+	return context->RegisterConsoleCommand("ui-panel-sample", TogglePanelCommand, "Toggle the SDK sample panel.");
 }
 
 D2RL_PLUGIN_EXPORT void D2RLoaderUnloadPlugin() noexcept {}

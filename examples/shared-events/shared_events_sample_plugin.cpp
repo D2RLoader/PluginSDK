@@ -16,7 +16,11 @@ static const D2RL::WidgetServiceV1* widgets;
 
 static void __cdecl OnItemTooltip(const D2RL::PluginContext*, D2RL::SharedEvents::ItemTooltipEvent* event, void* userData) noexcept {
 	const char* text = static_cast<const char*>(userData);
-	if (event == nullptr || event->structSize < D2RL::SharedEvents::ItemTooltipEventRequiredSize || event->text == nullptr || text == nullptr) {
+	if (event == nullptr || event->structSize < D2RL::SharedEvents::ItemTooltipEventRequiredSize) {
+		return;
+	}
+
+	if (event->text == nullptr || text == nullptr) {
 		return;
 	}
 	const size_t size = std::strlen(text);
@@ -28,12 +32,24 @@ static void __cdecl OnItemTooltip(const D2RL::PluginContext*, D2RL::SharedEvents
 }
 
 static auto __cdecl OnUiMessage(const D2RL::PluginContext* context, const D2RL::SharedEvents::UiMessageEvent* event, void*) noexcept -> D2RL::SharedEvents::UiMessageAction {
-	if (context != nullptr && event != nullptr && event->structSize >= D2RL::SharedEvents::UiMessageEventRequiredSize && event->target != nullptr && event->command != nullptr
-	    && std::strcmp(event->target, "shared-events-sample") == 0 && std::strcmp(event->command, "ping") == 0) {
-		constexpr char message[] = "The shared-events sample received its UI message.";
-		context->WriteConsoleMessage(message);
-		context->LogInfo(message);
+	if (context == nullptr || event == nullptr) {
+		return D2RL::SharedEvents::UiMessageAction::Continue;
 	}
+
+	if (event->structSize < D2RL::SharedEvents::UiMessageEventRequiredSize) {
+		return D2RL::SharedEvents::UiMessageAction::Continue;
+	}
+
+	if (event->target == nullptr || event->command == nullptr) {
+		return D2RL::SharedEvents::UiMessageAction::Continue;
+	}
+
+	if (std::strcmp(event->target, "shared-events-sample") != 0 || std::strcmp(event->command, "ping") != 0) {
+		return D2RL::SharedEvents::UiMessageAction::Continue;
+	}
+	constexpr char message[] = "The shared-events sample received its UI message.";
+	context->WriteConsoleMessage(message);
+	context->LogInfo(message);
 	return D2RL::SharedEvents::UiMessageAction::Continue;
 }
 
@@ -56,9 +72,23 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderGetPluginInfo() noexcept -> const D2RL::PluginI
 
 D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) noexcept -> bool {
 	const D2RL::SharedEventServiceV1* events = nullptr;
-	if (context == nullptr || context->QueryService(D2RL::ServiceId::SharedEvent, D2RL::SharedEventServiceV1Version, &events) != D2RL::ServiceQueryResult::Success
-	    || context->QueryService(D2RL::ServiceId::Widget, D2RL::WidgetServiceV1Version, &widgets) != D2RL::ServiceQueryResult::Success
-	    || !D2RL::HasSharedEventServiceV1Field(events, D2RL::SharedEventServiceV1RequiredSize) || !D2RL::HasWidgetServiceV1Field(widgets, D2RL::WidgetServiceV1RequiredSize)) {
+	if (context == nullptr) {
+		return false;
+	}
+
+	if (context->QueryService(D2RL::ServiceId::SharedEvent, D2RL::SharedEventServiceV1Version, &events) != D2RL::ServiceQueryResult::Success) {
+		return false;
+	}
+
+	if (!D2RL::HasSharedEventServiceV1Field(events, D2RL::SharedEventServiceV1RequiredSize)) {
+		return false;
+	}
+
+	if (context->QueryService(D2RL::ServiceId::Widget, D2RL::WidgetServiceV1Version, &widgets) != D2RL::ServiceQueryResult::Success) {
+		return false;
+	}
+
+	if (!D2RL::HasWidgetServiceV1Field(widgets, D2RL::WidgetServiceV1RequiredSize)) {
 		return false;
 	}
 
@@ -87,10 +117,18 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) 
 	D2RL::SharedEvents::ListenerHandle attributeHandle = D2RL::SharedEvents::InvalidHandle;
 	D2RL::SharedEvents::ListenerHandle actionHandle    = D2RL::SharedEvents::InvalidHandle;
 	D2RL::SharedEvents::ListenerHandle messageHandle   = D2RL::SharedEvents::InvalidHandle;
-	return events->registerItemTooltipListener(context, &attributeTooltip, &attributeHandle) == D2RL::SharedEvents::Result::Success
-	    && events->registerItemTooltipListener(context, &actionTooltip, &actionHandle) == D2RL::SharedEvents::Result::Success
-	    && events->registerUiMessageListener(context, &messages, &messageHandle) == D2RL::SharedEvents::Result::Success
-	    && context->RegisterConsoleCommand("shared-events-sample", SendSampleMessage, "Send a UI message through the shared-events sample.");
+	if (events->registerItemTooltipListener(context, &attributeTooltip, &attributeHandle) != D2RL::SharedEvents::Result::Success) {
+		return false;
+	}
+
+	if (events->registerItemTooltipListener(context, &actionTooltip, &actionHandle) != D2RL::SharedEvents::Result::Success) {
+		return false;
+	}
+
+	if (events->registerUiMessageListener(context, &messages, &messageHandle) != D2RL::SharedEvents::Result::Success) {
+		return false;
+	}
+	return context->RegisterConsoleCommand("shared-events-sample", SendSampleMessage, "Send a UI message through the shared-events sample.");
 }
 
 D2RL_PLUGIN_EXPORT void D2RLoaderUnloadPlugin() noexcept {}

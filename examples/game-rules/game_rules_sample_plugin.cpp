@@ -82,11 +82,31 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderGetPluginInfo() noexcept -> const D2RL::PluginI
 }
 
 D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) noexcept -> bool {
-	if (context == nullptr || context->QueryService(D2RL::ServiceId::GameRule, D2RL::GameRuleServiceV1Version, &gameRules) != D2RL::ServiceQueryResult::Success
-	    || context->QueryService(D2RL::ServiceId::Inventory, D2RL::InventoryServiceV1Version, &inventory) != D2RL::ServiceQueryResult::Success
-	    || context->QueryService(D2RL::ServiceId::Thread, D2RL::ThreadServiceV1Version, &threads) != D2RL::ServiceQueryResult::Success
-	    || !D2RL::HasGameRuleServiceV1Field(gameRules, D2RL::GameRuleServiceV1RequiredSize) || !D2RL::HasInventoryServiceV1Field(inventory, D2RL::InventoryServiceV1RequiredSize)
-	    || !D2RL::HasThreadServiceV1Field(threads, D2RL::ThreadServiceV1RequiredSize)) {
+	if (context == nullptr) {
+		return false;
+	}
+
+	if (context->QueryService(D2RL::ServiceId::GameRule, D2RL::GameRuleServiceV1Version, &gameRules) != D2RL::ServiceQueryResult::Success) {
+		return false;
+	}
+
+	if (!D2RL::HasGameRuleServiceV1Field(gameRules, D2RL::GameRuleServiceV1RequiredSize)) {
+		return false;
+	}
+
+	if (context->QueryService(D2RL::ServiceId::Inventory, D2RL::InventoryServiceV1Version, &inventory) != D2RL::ServiceQueryResult::Success) {
+		return false;
+	}
+
+	if (!D2RL::HasInventoryServiceV1Field(inventory, D2RL::InventoryServiceV1RequiredSize)) {
+		return false;
+	}
+
+	if (context->QueryService(D2RL::ServiceId::Thread, D2RL::ThreadServiceV1Version, &threads) != D2RL::ServiceQueryResult::Success) {
+		return false;
+	}
+
+	if (!D2RL::HasThreadServiceV1Field(threads, D2RL::ThreadServiceV1RequiredSize)) {
 		return false;
 	}
 	return context->RegisterConsoleCommand("game-rules-sample", GameRulesCommand, "Report final item and skill rules.");

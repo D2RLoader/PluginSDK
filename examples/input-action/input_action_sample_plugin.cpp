@@ -25,8 +25,15 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderGetPluginInfo() noexcept -> const D2RL::PluginI
 
 D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) noexcept -> bool {
 	const D2RL::InputServiceV1* input = nullptr;
-	if (context == nullptr || context->QueryService(D2RL::ServiceId::Input, D2RL::InputServiceV1Version, &input) != D2RL::ServiceQueryResult::Success
-	    || !D2RL::HasInputServiceV1Field(input, D2RL::InputServiceV1RequiredSize)) {
+	if (context == nullptr) {
+		return false;
+	}
+
+	if (context->QueryService(D2RL::ServiceId::Input, D2RL::InputServiceV1Version, &input) != D2RL::ServiceQueryResult::Success) {
+		return false;
+	}
+
+	if (!D2RL::HasInputServiceV1Field(input, D2RL::InputServiceV1RequiredSize)) {
 		return false;
 	}
 

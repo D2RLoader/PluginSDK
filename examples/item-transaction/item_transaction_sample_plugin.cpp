@@ -27,6 +27,7 @@ static auto __cdecl FindElRunes(const D2RL::PluginContext*, const D2RL::Items::I
 	if (search == nullptr || item == nullptr || item->structSize < D2RL::Items::ItemInfoRequiredSize) {
 		return D2RL::Inventory::IterationAction::Stop;
 	}
+
 	if (item->code == D2RL::Items::MakeItemCode("r01") && search->count < search->handles.size()) {
 		search->handles[search->count++] = item->handle;
 	}
@@ -139,11 +140,31 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderGetPluginInfo() noexcept -> const D2RL::PluginI
 }
 
 D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) noexcept -> bool {
-	if (context == nullptr || context->QueryService(D2RL::ServiceId::Inventory, D2RL::InventoryServiceV1Version, &inventory) != D2RL::ServiceQueryResult::Success
-	    || context->QueryService(D2RL::ServiceId::Item, D2RL::ItemServiceV1Version, &items) != D2RL::ServiceQueryResult::Success
-	    || context->QueryService(D2RL::ServiceId::Thread, D2RL::ThreadServiceV1Version, &threads) != D2RL::ServiceQueryResult::Success
-	    || !D2RL::HasInventoryServiceV1Field(inventory, D2RL::InventoryServiceV1RequiredSize) || !D2RL::HasItemServiceV1Field(items, D2RL::ItemServiceV1RequiredSize)
-	    || !D2RL::HasThreadServiceV1Field(threads, D2RL::ThreadServiceV1RequiredSize)) {
+	if (context == nullptr) {
+		return false;
+	}
+
+	if (context->QueryService(D2RL::ServiceId::Inventory, D2RL::InventoryServiceV1Version, &inventory) != D2RL::ServiceQueryResult::Success) {
+		return false;
+	}
+
+	if (!D2RL::HasInventoryServiceV1Field(inventory, D2RL::InventoryServiceV1RequiredSize)) {
+		return false;
+	}
+
+	if (context->QueryService(D2RL::ServiceId::Item, D2RL::ItemServiceV1Version, &items) != D2RL::ServiceQueryResult::Success) {
+		return false;
+	}
+
+	if (!D2RL::HasItemServiceV1Field(items, D2RL::ItemServiceV1RequiredSize)) {
+		return false;
+	}
+
+	if (context->QueryService(D2RL::ServiceId::Thread, D2RL::ThreadServiceV1Version, &threads) != D2RL::ServiceQueryResult::Success) {
+		return false;
+	}
+
+	if (!D2RL::HasThreadServiceV1Field(threads, D2RL::ThreadServiceV1RequiredSize)) {
 		return false;
 	}
 	return context->RegisterConsoleCommand("item-sample-trade", ItemTradeCommand, "Trade three inventory El runes for a configured cap.");
