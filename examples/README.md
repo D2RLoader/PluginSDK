@@ -29,8 +29,9 @@ cmake --build build --target D2RLDataTablesSamplePlugin
 ## Gameplay lifecycle plugin
 
 `gameplay-lifecycle` listens for joining and leaving a game, the local player
-becoming ready, act and level changes, and resurrection. It logs each event. It
-also shows when handles from the previous game stop being valid.
+becoming ready, initial and later act/area changes, character-level changes,
+quest completion, and resurrection. It logs each event. It also shows when
+handles from the previous game stop being valid.
 
 Build it with:
 
@@ -49,6 +50,19 @@ Build it with:
 
 ```powershell
 cmake --build build --target D2RLItemTransactionSamplePlugin
+```
+
+## Item interactions plugin
+
+`item-interactions` listens before an item is activated in a proven inventory
+grid. It logs the safe item/player handles, container, selected cell, input
+source, and held modifiers, then returns `Continue` so the stock action still
+runs.
+
+Build it with:
+
+```powershell
+cmake --build build --target D2RLItemInteractionsSamplePlugin
 ```
 
 ## Game rules plugin
@@ -73,6 +87,18 @@ Build it with:
 
 ```powershell
 cmake --build build --target D2RLNetworkPingSamplePlugin
+```
+
+## HTTPS plugin
+
+`https` registers the `https-sample` command. It queues a GET request to
+`https://example.com/` and writes the result, status, header count, and body size
+to the plugin log from the response callback.
+
+Build it with:
+
+```powershell
+cmake --build build --target D2RLHttpsSamplePlugin
 ```
 
 ## UI panel plugin
@@ -187,6 +213,7 @@ feature needs both.
 | Panel | `ui-panel`, `widget-localization` |
 | Inventory | `item-transaction`, `game-rules` |
 | Network | `network-ping` |
+| HTTPS | `https` |
 | Input | `input-action` |
 | Data Table | `data-tables` |
 | Shared Event | `shared-events` |
@@ -196,6 +223,7 @@ feature needs both.
 | Work queue (`ThreadServiceV1`) | `item-transaction`, `network-ping`, `game-rules` |
 | Localization | `widget-localization` |
 | Item | `item-transaction` |
+| Item Interaction | `item-interactions` |
 
 ## Plugin manifest
 

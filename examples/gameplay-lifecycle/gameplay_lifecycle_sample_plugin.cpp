@@ -9,19 +9,21 @@ static constexpr D2RL::PluginInfo GameplayLifecyclePluginInfo {
 	.name        = "Gameplay Lifecycle Sample Plugin",
 	.version     = "0.1.0",
 	.author      = "D2RLoader",
-	.description = "Reports game, player, act, level, and resurrection events.",
+	.description = "Reports game, player, location, level-up, quest, and resurrection events.",
 	.flags       = D2RL::PluginFlags::Shared,
 };
 
 static auto EventName(D2RL::Lifecycle::GameplayEventKind kind) noexcept -> const char* {
 	switch (kind) {
-		case D2RL::Lifecycle::GameplayEventKind::GameJoined:        return "game joined";
-		case D2RL::Lifecycle::GameplayEventKind::GameLeft:          return "game left";
-		case D2RL::Lifecycle::GameplayEventKind::LocalPlayerReady:  return "local player ready";
-		case D2RL::Lifecycle::GameplayEventKind::ActChanged:        return "act changed";
-		case D2RL::Lifecycle::GameplayEventKind::LevelChanged:      return "level changed";
-		case D2RL::Lifecycle::GameplayEventKind::PlayerResurrected: return "player resurrected";
-		default:                                                    return "unknown";
+		case D2RL::Lifecycle::GameplayEventKind::GameJoined:         return "game joined";
+		case D2RL::Lifecycle::GameplayEventKind::GameLeft:           return "game left";
+		case D2RL::Lifecycle::GameplayEventKind::LocalPlayerReady:   return "local player ready";
+		case D2RL::Lifecycle::GameplayEventKind::ActChanged:         return "act changed";
+		case D2RL::Lifecycle::GameplayEventKind::LevelChanged:       return "level changed";
+		case D2RL::Lifecycle::GameplayEventKind::PlayerResurrected:  return "player resurrected";
+		case D2RL::Lifecycle::GameplayEventKind::PlayerLevelChanged: return "player level changed";
+		case D2RL::Lifecycle::GameplayEventKind::QuestCompleted:     return "quest completed";
+		default:                                                     return "unknown";
 	}
 }
 
@@ -29,16 +31,9 @@ static void __cdecl OnGameplayEvent(const D2RL::PluginContext* context, const D2
 	if (context == nullptr || !D2RL::Lifecycle::HasGameplayEventField(event, D2RL::Lifecycle::GameplayEventRequiredSize)) {
 		return;
 	}
-	char       message[192] {};
+	char       message[256] {};
 	const auto session = static_cast<unsigned long long>(event->sessionGeneration);
-	std::snprintf(message,
-		sizeof(message),
-		"Lifecycle: %s, player=%u, session=%llu, previous=%d, current=%d.",
-		EventName(event->kind),
-		event->playerId,
-		session,
-		event->previousValue,
-		event->currentValue);
+	std::snprintf(message, sizeof(message), "Lifecycle: %s, player=%u, session=%llu, previous=%d, current=%d, difficulty=%u, quest-row=%u.", EventName(event->kind), event->playerId, session, event->previousValue, event->currentValue, event->difficulty, event->questRecordId);
 	context->LogInfo(message);
 }
 
@@ -67,6 +62,8 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) 
 		D2RL::Lifecycle::GameplayEventKind::ActChanged,
 		D2RL::Lifecycle::GameplayEventKind::LevelChanged,
 		D2RL::Lifecycle::GameplayEventKind::PlayerResurrected,
+		D2RL::Lifecycle::GameplayEventKind::PlayerLevelChanged,
+		D2RL::Lifecycle::GameplayEventKind::QuestCompleted,
 	};
 	for (const auto kind : Kinds) {
 		const D2RL::Lifecycle::GameplayEventListener listener {

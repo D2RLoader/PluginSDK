@@ -48,7 +48,7 @@ if(D2RLPLUGIN_BUILD_TESTS)
 	enable_testing()
 	set(D2RLPLUGIN_PUBLIC_HEADERS
 		api console context core_exports custom_tables data_tables diagnostics
-		game_rules handles hooks input inventory item lifecycle lifecycle_events
+		game_rules handles hooks http input inventory item item_interactions lifecycle lifecycle_events
 		localization logging network panels patching reimplementation_exports
 		resource resources services shared_events threads version widgets
 	)
@@ -159,9 +159,19 @@ d2rlplugin_add_sample(D2RLItemTransactionSamplePlugin "d2rl-item-transaction-sam
 	examples/item-transaction/item_transaction_sample_plugin.rc
 )
 
+d2rlplugin_add_sample(D2RLItemInteractionsSamplePlugin "d2rl-item-interactions-sample"
+	examples/item-interactions/item_interactions_sample_plugin.cpp
+	examples/item-interactions/item_interactions_sample_plugin.rc
+)
+
 d2rlplugin_add_sample(D2RLNetworkPingSamplePlugin "d2rl-network-ping-sample"
 	examples/network-ping/network_ping_sample_plugin.cpp
 	examples/network-ping/network_ping_sample_plugin.rc
+)
+
+d2rlplugin_add_sample(D2RLHttpsSamplePlugin "d2rl-https-sample"
+	examples/https/https_sample_plugin.cpp
+	examples/https/https_sample_plugin.rc
 )
 
 d2rlplugin_add_sample(D2RLConfigFileSamplePlugin "d2rl-config-file-sample"

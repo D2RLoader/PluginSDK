@@ -30,12 +30,14 @@ enum class Result : uint32_t {
 };
 
 enum class GameplayEventKind : uint32_t {
-	GameJoined        = 1,
-	GameLeft          = 2,
-	LocalPlayerReady  = 3,
-	ActChanged        = 4,
-	LevelChanged      = 5,
-	PlayerResurrected = 6,
+	GameJoined         = 1,
+	GameLeft           = 2,
+	LocalPlayerReady   = 3,
+	ActChanged         = 4,
+	LevelChanged       = 5,
+	PlayerResurrected  = 6,
+	PlayerLevelChanged = 7,
+	QuestCompleted     = 8,
 };
 
 // revision starts at 1 and changes after every completed data-table load. The
@@ -67,11 +69,18 @@ struct GameplayEvent {
 	uint64_t          sessionGeneration;
 	int32_t           previousValue;
 	int32_t           currentValue;
+	uint32_t          difficulty;
+	uint32_t          questRecordId;
 };
 
 // Gameplay listeners run on the UI thread in registration order. ActChanged
 // uses the zero-based act number in previousValue/currentValue. LevelChanged
-// uses level ids. The other events leave both values at zero. A new
+// uses level ids. PlayerLevelChanged uses character levels. QuestCompleted is
+// emitted when PrimaryGoalDone changes from zero to one; difficulty is 0 for
+// Normal, 1 for Nightmare, or 2 for Hell, and questRecordId is the zero-based
+// quest state row. Existing completions are baselined when the player becomes
+// ready. Initial ActChanged/LevelChanged events use -1 as previousValue. Fields
+// not used by an event are zero. A new
 // sessionGeneration also invalidates player and item handles from the old game.
 
 using GameplayEventCallback = void(__cdecl*)(const PluginContext* context, const GameplayEvent* event, void* userData) noexcept;
@@ -138,7 +147,7 @@ static_assert(offsetof(DataTablesLoadedListener, callback) == 8);
 static_assert(offsetof(DataTablesLoadedListener, userData) == 16);
 static_assert(DataTablesLoadedListenerRequiredSize == 24);
 static_assert(sizeof(DataTablesLoadedListener) == 24);
-static_assert(sizeof(GameplayEvent) == 32);
+static_assert(sizeof(GameplayEvent) == 40);
 static_assert(sizeof(GameplayEventListener) == 32);
 
 }

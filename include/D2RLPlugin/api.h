@@ -9,9 +9,11 @@
 #include <D2RLPlugin/game_rules.h>
 #include <D2RLPlugin/handles.h>
 #include <D2RLPlugin/hooks.h>
+#include <D2RLPlugin/http.h>
 #include <D2RLPlugin/input.h>
 #include <D2RLPlugin/inventory.h>
 #include <D2RLPlugin/item.h>
+#include <D2RLPlugin/item_interactions.h>
 #include <D2RLPlugin/lifecycle.h>
 #include <D2RLPlugin/lifecycle_events.h>
 #include <D2RLPlugin/localization.h>
