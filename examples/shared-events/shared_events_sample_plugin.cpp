@@ -1,4 +1,5 @@
 #include <D2RLPlugin/api.h>
+#include <cstdio>
 #include <cstring>
 
 static constexpr D2RL::PluginInfo SharedEventsPluginInfo {
@@ -42,6 +43,12 @@ static auto __cdecl OnUiMessage(const D2RL::PluginContext* context, const D2RL::
 
 	if (event->target == nullptr || event->command == nullptr) {
 		return D2RL::SharedEvents::UiMessageAction::Continue;
+	}
+	if (event->characterHardcoreMode != D2RL::SharedEvents::CharacterHardcoreMode::Unknown) {
+		const char* mode = event->characterHardcoreMode == D2RL::SharedEvents::CharacterHardcoreMode::Hardcore ? "Hardcore" : "Softcore";
+		char        message[96] {};
+		std::snprintf(message, sizeof(message), "Character creation requested in %s mode.", mode);
+		context->LogInfo(message);
 	}
 
 	if (std::strcmp(event->target, "shared-events-sample") != 0 || std::strcmp(event->command, "ping") != 0) {

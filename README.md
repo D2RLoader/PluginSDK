@@ -7,15 +7,15 @@ use D2RLoader's internal code.
 Start with `D2RLPlugin/api.h` and the example closest to what you want to build.
 Most plugins do not need to include each service header separately.
 
-The current API is v3. Version 2 plugins still work, but D2RLoader treats them as
-shared plugins because v2 did not define client and server roles.
+The current API is v4. Version 2 and 3 plugins still work. D2RLoader treats v2
+plugins as shared because v2 did not define client and server roles.
 
 ## Requirements
 
 * Windows x64
 * CMake 3.28+
 * MSVC or clang-cl
-* D2RLoader with plugin API v3 support
+* D2RLoader with plugin API v4 support
 
 ## Start a Plugin
 
@@ -38,6 +38,7 @@ the map:
 | `data_tables.h` | Read-only access to D2R's compiled tables. |
 | `inventory.h` | Existing-item discovery plus custom player pages and their policies. |
 | `item.h` | Item inspection, creation, editing, deletion, and all-or-nothing exchanges. |
+| `item_interactions.h` | Semantic activation events for proven item UI surfaces. |
 | `panels.h` | Plugin panels, stock-panel children, custom inventory grids, and controller routes. |
 | `widgets.h` | Safe lookup and basic control of existing UI widgets. |
 | `input.h` | Named actions and bindings in D2R's Controls menu. |
@@ -45,6 +46,7 @@ the map:
 | `shared_events.h` | Shared tooltip and UI-message listeners. |
 | `diagnostics.h` | Detection and ownership reporting for changed executable bytes. |
 | `game_rules.h` | Final socket, stack, and skill-allocation rules. |
+| `http.h` | Asynchronous HTTPS requests with copied inputs and bounded responses. |
 | `threads.h` | Queue one task for the UI or the game. |
 | `localization.h` | Copied active UTF-8 text by id or key. |
 | `core_exports.h` | Advanced D2RCore functions at ordinals 1-99. |
@@ -137,7 +139,7 @@ Put a mod-scoped plugin in:
 Mod plugins load first. If a mod plugin and global plugin use the same id, the
 mod copy replaces the global copy while that mod is active.
 
-Every API v3 plugin must set exactly one role in `PluginInfo::flags`:
+Every API v3 or newer plugin must set exactly one role in `PluginInfo::flags`:
 
 - `PluginFlags::Client` is for UI, input, and other local behavior.
 - `PluginFlags::Server` is for gameplay rules and character saves.
@@ -158,6 +160,11 @@ D2RLoader checks it before loading the DLL and skips unsupported versions.
 API v3 requires a role. Older v2 plugins did not have roles, so D2RLoader treats
 them as `PluginFlags::Shared`. They still load, but must match in TCP/IP and are
 recorded in the character's plugin history.
+
+API v4 adds explicit duplicate-Unique item creation, atomic existing-item
+operations, semantic item interactions, initial location and new gameplay
+events, Hardcore/Softcore character-creation metadata, and asynchronous HTTPS
+requests.
 
 ## Services
 
@@ -197,9 +204,14 @@ unregisters a listener while it is running, that call waits for it to finish.
 The plugin should still check the state of each custom table it owns.
 
 The same service reports game join and leave, local-player readiness, act and
-level changes, and resurrection. UI callbacks run in registration order.
-Register one listener for each event you need while the plugin loads. A new game
-session makes player and item handles from the old game invalid.
+area changes, character-level changes, quest completion, and resurrection. UI
+callbacks run in registration order. Immediately after `LocalPlayerReady`, the
+initial `ActChanged` and `LevelChanged` use `-1` as the previous value. A quest
+event is emitted only when its `PrimaryGoalDone` flag changes from false to true;
+existing completions are baselined when the player becomes ready. Its difficulty
+and zero-based quest-state row are in the event. Register one listener for each
+event you need while the plugin loads. A new game session makes player and item
+handles from the old game invalid.
 
 ### Resources and Companion MPQs
 
@@ -364,7 +376,11 @@ Properties `*Id 0` for exactly `+25 Defense`.
 `generationSeed` controls item generation. `itemSeed` is stored on the item.
 Both must be zero in `Random` mode. `Deterministic` mode supplies both and checks
 that D2R kept them. Prefix and suffix ids use D2R's one-based MagicAffix ids. Set
-and Unique rows are zero-based. `RandomQualityRecord` lets D2R choose.
+and Unique rows are zero-based. `RandomQualityRecord` lets D2R choose. D2R's
+once-per-game rule for each Unique row stays enabled by default, including for
+random selection. Set `ItemCreateFlag::AllowDuplicateUnique` only when the
+plugin intentionally permits the same Unique row more than once. Set items do
+not use that rule.
 
 `editItem` changes supported fields on the existing item. Its handle, runtime
 id, socket contents, and other data stay the same. V1 can change quantity,
@@ -379,6 +395,48 @@ checks fail, it removes new outputs and restores the inputs. Use
 `RejectIfNotEmpty` to protect socketed inputs. Choose `DestroyContents` only when
 the socket contents should be deleted too. A non-stackable item has a quantity
 of one.
+
+`executeExistingItemTransaction` changes items that must keep their handles and
+native identity. Pass a tagged array of `Debit`, `Edit`, and `Move` operations.
+A debit must leave a positive quantity; use `executeTransaction` when an input
+should be consumed completely. Debits and edits accept stored or cursor items.
+Atomic edits cover durability, identified state, and item level. Atomic moves
+cover the normal inventory, Cube, personal stash,
+and the current custom page. Equipment, cursor, belt, shared-stash, trade,
+corpse, and ground moves are not accepted in V1.
+
+Every operation is validated before mutation. Moved items are removed from a
+temporary occupancy model first, so a single transaction can swap or chain
+their locations. If a native placement or postcondition fails, D2RLoader
+restores moved items and edited values. The handles, runtime ids, seeds, sockets,
+and unrelated item data stay intact. `failureIndex` identifies the rejected
+operation.
+
+```cpp
+D2RL::Items::ExistingItemOperation operations[2] {};
+operations[0].structSize     = D2RL::Items::ExistingItemOperationSize;
+operations[0].kind           = D2RL::Items::ExistingItemOperationKind::Debit;
+operations[0].item           = resourceStack;
+operations[0].debit.quantity = 1;
+
+operations[1].structSize                  = D2RL::Items::ExistingItemOperationSize;
+operations[1].kind                        = D2RL::Items::ExistingItemOperationKind::Move;
+operations[1].item                        = rewardItem;
+operations[1].move.destination.structSize = D2RL::Items::ItemDestinationSize;
+operations[1].move.destination.container  = D2RL::Items::ItemContainer::Cube;
+operations[1].move.destination.placement  = D2RL::Items::Placement::Automatic;
+
+const D2RL::Items::ExistingItemTransaction transaction {
+	.structSize     = D2RL::Items::ExistingItemTransactionSize,
+	.player         = player,
+	.operationCount = 2,
+	.operations     = operations,
+};
+D2RL::Items::ExistingItemTransactionResult result {
+	.structSize = D2RL::Items::ExistingItemTransactionResultSize,
+};
+items->executeExistingItemTransaction(context, &transaction, &result);
+```
 
 `editNativeItem` is for changes V1 cannot describe. It requires
 `PluginFlags::NativeHooks` and gives a native pointer to a game callback. The
@@ -517,8 +575,26 @@ first; equal priorities use registration order.
 
 UI-message listeners receive copied target, command, and text values. They may
 consume D2R messages or Widget-service actions before normal panel handling.
+`CharacterCreate:Create` also reports whether the selected character is
+Hardcore or Softcore; other UI messages report `Unknown`.
 D2RLoader runs both listener types during UI updates. Listeners may unregister
 themselves. D2RLoader removes them when the plugin unloads.
+
+### Item Interactions
+
+`ItemInteractionServiceV1` reports a logical item activation before D2R handles
+it. The event contains generation-safe item and player handles, the actual item
+container, the selected cell, keyboard modifiers, and whether the active input
+source is keyboard/mouse or controller. V1 emits `Activate` from proven normal
+inventory, Cube, personal-stash, and custom-page grids. It deliberately excludes
+vendor, trade, corpse, ground, equipment, cursor, belt, and shared-stash paths
+until their native behavior is proven.
+
+Callbacks run on the UI thread. Higher priority runs first; equal priorities use
+registration order. Return `Continue` to leave the item action alone. Return
+`Consume` to stop lower-priority listeners and the normal D2R action. Handles
+belong to the receiving plugin, and all registrations are removed automatically
+when that plugin unloads. See `item-interactions` for a complete listener.
 
 ### Patch Diagnostics
 
@@ -533,6 +609,21 @@ and plugin id when there is one known owner.
 maximum stack size, skill cap, and whether a player can spend a skill point. The
 skill check does not spend the point. Read item and skill limits from a UI or
 queued game callback. `canAllocateSkill` needs a game callback.
+
+### HTTPS Requests
+
+`HttpServiceV1` sends GET, POST, PUT, PATCH, DELETE, and HEAD requests to
+`https://` URLs. `send` copies the URL, headers, and body before returning, then
+runs the request on a worker thread. The response callback also runs on that
+worker thread, never the UI or game thread. Queue UI or game work through
+`ThreadServiceV1` when a response needs to affect D2R.
+
+Normal certificate and host-name checks stay enabled. Redirects may remain on
+HTTPS but cannot downgrade to HTTP. A transport success may still have an HTTP
+error status such as 404. The response headers, strings, and body are borrowed
+and valid only during the callback. Zero timeout and response-limit fields use
+the documented defaults. `cancel` suppresses a callback that has not started;
+D2RLoader also cancels every outstanding request when the plugin unloads.
 
 ### Running Work at the Right Time
 

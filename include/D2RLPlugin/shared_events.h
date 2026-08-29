@@ -33,6 +33,12 @@ enum class UiMessageAction : uint32_t {
 	Consume  = 1,
 };
 
+enum class CharacterHardcoreMode : uint32_t {
+	Unknown  = 0,
+	Softcore = 1,
+	Hardcore = 2,
+};
+
 enum class ItemTooltipRegion : uint32_t {
 	Description  = 0,
 	Attributes   = 1,
@@ -83,17 +89,21 @@ struct ItemTooltipEvent {
 };
 
 struct UiMessageEvent {
-		uint32_t    structSize;
-		uint32_t    flags;
-		uint64_t    targetHash;
-		uint64_t    commandHash;
-		const char* target;
-		const char* command;
-		const char* text;
+		uint32_t              structSize;
+		uint32_t              flags;
+		uint64_t              targetHash;
+		uint64_t              commandHash;
+		const char*           target;
+		const char*           command;
+		const char*           text;
+		CharacterHardcoreMode characterHardcoreMode;
+		uint32_t              reserved;
 };
 
 // UI message strings are borrowed and remain valid only for the callback.
-// Returning Consume stops lower-priority listeners and normal panel handling.
+// CharacterCreate:Create reports the selected Hardcore/Softcore mode. Other
+// messages report Unknown. Returning Consume stops lower-priority listeners
+// and normal panel handling.
 
 using ItemTooltipCallback = void(__cdecl*)(const PluginContext* context, ItemTooltipEvent* event, void* userData) noexcept;
 using UiMessageCallback   = UiMessageAction(__cdecl*)(const PluginContext* context, const UiMessageEvent* event, void* userData) noexcept;
@@ -144,6 +154,7 @@ using UnregisterUiMessageListenerFn   = Result(__cdecl*)(const PluginContext* co
 
 static_assert(sizeof(Result) == sizeof(uint32_t));
 static_assert(sizeof(UiMessageAction) == sizeof(uint32_t));
+static_assert(sizeof(CharacterHardcoreMode) == sizeof(uint32_t));
 static_assert(sizeof(ItemTooltipRegion) == sizeof(uint32_t));
 static_assert(sizeof(ItemTooltipPosition) == sizeof(uint32_t));
 static_assert(sizeof(ItemTooltipAnchor) == sizeof(uint32_t));
@@ -153,7 +164,7 @@ static_assert(std::is_standard_layout_v<UiMessageEvent> && std::is_trivially_cop
 static_assert(std::is_standard_layout_v<ItemTooltipListener> && std::is_trivially_copyable_v<ItemTooltipListener>);
 static_assert(std::is_standard_layout_v<UiMessageListener> && std::is_trivially_copyable_v<UiMessageListener>);
 static_assert(sizeof(ItemTooltipEvent) == 32);
-static_assert(sizeof(UiMessageEvent) == 48);
+static_assert(sizeof(UiMessageEvent) == 56);
 static_assert(sizeof(ItemTooltipListener) == 48);
 static_assert(sizeof(UiMessageListener) == 32);
 
