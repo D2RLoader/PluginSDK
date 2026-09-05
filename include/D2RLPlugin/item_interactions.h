@@ -63,28 +63,28 @@ enum class Decision : uint32_t {
 // trade, corpse, ground, equipment, cursor, belt, and shared-stash interactions
 // are not emitted yet.
 struct ItemInteractionEvent {
-		uint32_t             structSize;
-		uint32_t             flags;
-		PlayerHandle         player;
-		ItemHandle           item;
-		Action               action;
-		InputSource          inputSource;
-		uint32_t             modifiers;
-		Items::ItemContainer container;
-		int32_t              inventoryPage;
-		int32_t              cellX;
-		int32_t              cellY;
+	uint32_t             structSize;
+	uint32_t             flags;
+	PlayerHandle         player;
+	ItemHandle           item;
+	Action               action;
+	InputSource          inputSource;
+	uint32_t             modifiers;
+	Items::ItemContainer container;
+	int32_t              inventoryPage;
+	int32_t              cellX;
+	int32_t              cellY;
 };
 
 using ItemInteractionCallback = Decision(__cdecl*)(const PluginContext* context, const ItemInteractionEvent* event, void* userData) noexcept;
 
 struct ItemInteractionListener {
-		uint32_t                structSize;
-		uint32_t                flags;
-		int32_t                 priority;
-		uint32_t                reserved;
-		ItemInteractionCallback callback;
-		void*                   userData;
+	uint32_t                structSize;
+	uint32_t                flags;
+	int32_t                 priority;
+	uint32_t                reserved;
+	ItemInteractionCallback callback;
+	void*                   userData;
 };
 
 using RegisterListenerFn   = Result(__cdecl*)(const PluginContext* context, const ItemInteractionListener* listener, ListenerHandle* handle) noexcept;
@@ -112,24 +112,26 @@ static_assert(sizeof(ItemInteractionListener) == 32);
 
 }
 
-struct ItemInteractionServiceV1 {
-		uint32_t                               serviceSize;
-		uint32_t                               serviceVersion;
-		ItemInteractions::RegisterListenerFn   registerListener;
-		ItemInteractions::UnregisterListenerFn unregisterListener;
+struct ItemInteractionService {
+	static constexpr ServiceId Id         = ServiceId::ItemInteraction;
+	static constexpr uint32_t  AbiVersion = 1;
+
+	uint32_t                               serviceSize;
+	uint32_t                               serviceVersion;
+	ItemInteractions::RegisterListenerFn   registerListener;
+	ItemInteractions::UnregisterListenerFn unregisterListener;
 };
 
-inline constexpr uint32_t ItemInteractionServiceV1Version      = 1;
-inline constexpr uint32_t ItemInteractionServiceV1Size         = static_cast<uint32_t>(sizeof(ItemInteractionServiceV1));
-inline constexpr uint32_t ItemInteractionServiceV1RequiredSize = ItemInteractionServiceV1Size;
+inline constexpr uint32_t ItemInteractionServiceSize         = static_cast<uint32_t>(sizeof(ItemInteractionService));
+inline constexpr uint32_t ItemInteractionServiceRequiredSize = ItemInteractionServiceSize;
 
-inline auto HasItemInteractionServiceV1Field(const ItemInteractionServiceV1* service, uint32_t fieldEndOffset) noexcept -> bool {
-	return service != nullptr && service->serviceVersion == ItemInteractionServiceV1Version && service->serviceSize >= fieldEndOffset;
+inline auto HasItemInteractionServiceField(const ItemInteractionService* service, uint32_t fieldEndOffset) noexcept -> bool {
+	return service != nullptr && service->serviceVersion == ItemInteractionService::AbiVersion && service->serviceSize >= fieldEndOffset;
 }
 
-static_assert(std::is_standard_layout_v<ItemInteractionServiceV1> && std::is_trivially_copyable_v<ItemInteractionServiceV1>);
-static_assert(offsetof(ItemInteractionServiceV1, registerListener) == 8);
-static_assert(ItemInteractionServiceV1RequiredSize == 24);
-static_assert(sizeof(ItemInteractionServiceV1) == 24);
+static_assert(std::is_standard_layout_v<ItemInteractionService> && std::is_trivially_copyable_v<ItemInteractionService>);
+static_assert(offsetof(ItemInteractionService, registerListener) == 8);
+static_assert(ItemInteractionServiceRequiredSize == 24);
+static_assert(sizeof(ItemInteractionService) == 24);
 
 }

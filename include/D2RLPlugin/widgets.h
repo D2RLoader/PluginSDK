@@ -60,7 +60,7 @@ using SetWidgetEnabledFn = Result(__cdecl*)(const PluginContext* context, Widget
 using DispatchUiActionFn = Result(__cdecl*)(const PluginContext* context, const UiAction* action) noexcept;
 
 // Every widget call must run on the UI thread, normally through
-// ThreadServiceV1::runOnUiThread. findWidget searches below its parent handle.
+// ThreadService::runOnUiThread. findWidget searches below its parent handle.
 // dispatchUiAction broadcasts the same target/command/text shape used by native
 // panel messages.
 
@@ -72,7 +72,10 @@ static_assert(sizeof(UiAction) == 32);
 
 }
 
-struct WidgetServiceV1 {
+struct WidgetService {
+	static constexpr ServiceId Id         = ServiceId::Widget;
+	static constexpr uint32_t  AbiVersion = 1;
+
 	uint32_t                    serviceSize;
 	uint32_t                    serviceVersion;
 	Widgets::FindPanelFn        findPanel;
@@ -83,15 +86,14 @@ struct WidgetServiceV1 {
 	Widgets::DispatchUiActionFn dispatchUiAction;
 };
 
-inline constexpr uint32_t WidgetServiceV1Version      = 1;
-inline constexpr uint32_t WidgetServiceV1Size         = static_cast<uint32_t>(sizeof(WidgetServiceV1));
-inline constexpr uint32_t WidgetServiceV1RequiredSize = WidgetServiceV1Size;
+inline constexpr uint32_t WidgetServiceSize         = static_cast<uint32_t>(sizeof(WidgetService));
+inline constexpr uint32_t WidgetServiceRequiredSize = WidgetServiceSize;
 
-inline auto HasWidgetServiceV1Field(const WidgetServiceV1* service, uint32_t fieldEndOffset) noexcept -> bool {
-	return service != nullptr && service->serviceVersion == WidgetServiceV1Version && service->serviceSize >= fieldEndOffset;
+inline auto HasWidgetServiceField(const WidgetService* service, uint32_t fieldEndOffset) noexcept -> bool {
+	return service != nullptr && service->serviceVersion == WidgetService::AbiVersion && service->serviceSize >= fieldEndOffset;
 }
 
-static_assert(std::is_standard_layout_v<WidgetServiceV1> && std::is_trivially_copyable_v<WidgetServiceV1>);
-static_assert(sizeof(WidgetServiceV1) == 56);
+static_assert(std::is_standard_layout_v<WidgetService> && std::is_trivially_copyable_v<WidgetService>);
+static_assert(sizeof(WidgetService) == 56);
 
 }

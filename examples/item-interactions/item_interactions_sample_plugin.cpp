@@ -3,7 +3,7 @@
 
 static constexpr D2RL::PluginInfo ItemInteractionsPluginInfo {
 	.infoSize    = D2RL::PluginInfoSize,
-	.apiVersion  = D2RL_PLUGIN_API_VERSION,
+	.abiVersion  = D2RL_PLUGIN_ABI_VERSION,
 	.id          = "item-interactions-sample",
 	.name        = "Item Interactions Sample Plugin",
 	.version     = "0.1.0",
@@ -17,7 +17,16 @@ static auto __cdecl OnItemInteraction(const D2RL::PluginContext* context, const 
 		return D2RL::ItemInteractions::Decision::Continue;
 	}
 	char message[192] {};
-	std::snprintf(message, sizeof(message), "Activated item=%llu player=%llu container=%u cell=(%d,%d) input=%u modifiers=0x%X.", static_cast<unsigned long long>(event->item), static_cast<unsigned long long>(event->player), static_cast<uint32_t>(event->container), event->cellX, event->cellY, static_cast<uint32_t>(event->inputSource), event->modifiers);
+	std::snprintf(message,
+		sizeof(message),
+		"Activated item=%llu player=%llu container=%u cell=(%d,%d) input=%u modifiers=0x%X.",
+		static_cast<unsigned long long>(event->item),
+		static_cast<unsigned long long>(event->player),
+		static_cast<uint32_t>(event->container),
+		event->cellX,
+		event->cellY,
+		static_cast<uint32_t>(event->inputSource),
+		event->modifiers);
 	context->LogInfo(message);
 	return D2RL::ItemInteractions::Decision::Continue;
 }
@@ -30,12 +39,12 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) 
 	if (context == nullptr) {
 		return false;
 	}
-	const D2RL::ItemInteractionServiceV1* interactions = nullptr;
-	if (context->QueryService(D2RL::ServiceId::ItemInteraction, D2RL::ItemInteractionServiceV1Version, &interactions) != D2RL::ServiceQueryResult::Success) {
+	const D2RL::ItemInteractionService* interactions = nullptr;
+	if (context->QueryService(&interactions) != D2RL::ServiceQueryResult::Success) {
 		return false;
 	}
 
-	if (!D2RL::HasItemInteractionServiceV1Field(interactions, D2RL::ItemInteractionServiceV1RequiredSize)) {
+	if (!D2RL::HasItemInteractionServiceField(interactions, D2RL::ItemInteractionServiceRequiredSize)) {
 		return false;
 	}
 	const D2RL::ItemInteractions::ItemInteractionListener listener {

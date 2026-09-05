@@ -2,7 +2,7 @@
 
 static constexpr D2RL::PluginInfo UiPanelPluginInfo {
 	.infoSize    = D2RL::PluginInfoSize,
-	.apiVersion  = D2RL_PLUGIN_API_VERSION,
+	.abiVersion  = D2RL_PLUGIN_ABI_VERSION,
 	.id          = "ui-panel-sample",
 	.name        = "UI Panel Sample Plugin",
 	.version     = "0.1.0",
@@ -46,7 +46,7 @@ static constexpr char PanelLayout[] = R"json({
 	]
 })json";
 
-static const D2RL::PanelServiceV1*      panels;
+static const D2RL::PanelService*        panels;
 static D2RL::Panels::RegistrationHandle panel = D2RL::Panels::InvalidHandle;
 
 static auto TogglePanelCommand(D2R::Game::Client*, const D2RL::ConsoleCommandContext* command, void*) noexcept -> D2RL::ConsoleCommandResult {
@@ -61,24 +61,24 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderGetPluginInfo() noexcept -> const D2RL::PluginI
 }
 
 D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) noexcept -> bool {
-	const D2RL::ResourceServiceV1* resources = nullptr;
+	const D2RL::ResourceService* resources = nullptr;
 	if (context == nullptr) {
 		return false;
 	}
 
-	if (context->QueryService(D2RL::ServiceId::Resource, D2RL::ResourceServiceV1Version, &resources) != D2RL::ServiceQueryResult::Success) {
+	if (context->QueryService(&resources) != D2RL::ServiceQueryResult::Success) {
 		return false;
 	}
 
-	if (!D2RL::HasResourceServiceV1Field(resources, D2RL::ResourceServiceV1RequiredSize)) {
+	if (!D2RL::HasResourceServiceField(resources, D2RL::ResourceServiceRequiredSize)) {
 		return false;
 	}
 
-	if (context->QueryService(D2RL::ServiceId::Panel, D2RL::PanelServiceV1Version, &panels) != D2RL::ServiceQueryResult::Success) {
+	if (context->QueryService(&panels) != D2RL::ServiceQueryResult::Success) {
 		return false;
 	}
 
-	if (!D2RL::HasPanelServiceV1Field(panels, D2RL::PanelServiceV1RequiredSize)) {
+	if (!D2RL::HasPanelServiceField(panels, D2RL::PanelServiceRequiredSize)) {
 		return false;
 	}
 	const D2RL::Resources::ResourceRegistration resource {

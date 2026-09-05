@@ -1,6 +1,19 @@
 cmake_minimum_required(VERSION 3.28)
 
-project(D2RLPluginSDK VERSION 0.1.0 LANGUAGES CXX RC)
+# C++ and CMake share the SDK release number from version.h.
+set(D2RLPLUGIN_VERSION_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/include/D2RLPlugin/version.h")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${D2RLPLUGIN_VERSION_HEADER}")
+file(STRINGS "${D2RLPLUGIN_VERSION_HEADER}" D2RLPLUGIN_VERSION_LINE REGEX "^#define[ \t]+D2RL_SDK_VERSION[ \t]+")
+list(LENGTH D2RLPLUGIN_VERSION_LINE D2RLPLUGIN_VERSION_COUNT)
+if(NOT D2RLPLUGIN_VERSION_COUNT EQUAL 1)
+	message(FATAL_ERROR "version.h must define D2RL_SDK_VERSION exactly once.")
+endif()
+if(NOT D2RLPLUGIN_VERSION_LINE MATCHES "^#define[ \t]+D2RL_SDK_VERSION[ \t]+\"([0-9]+\\.[0-9]+\\.[0-9]+)\"[ \t]*$")
+	message(FATAL_ERROR "Set D2RL_SDK_VERSION to a quoted MAJOR.MINOR.PATCH value, such as \"0.2.0\".")
+endif()
+set(D2RLPLUGIN_SDK_VERSION "${CMAKE_MATCH_1}")
+
+project(D2RLPluginSDK VERSION "${D2RLPLUGIN_SDK_VERSION}" LANGUAGES CXX RC)
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
@@ -47,7 +60,7 @@ install(FILES
 if(D2RLPLUGIN_BUILD_TESTS)
 	enable_testing()
 	set(D2RLPLUGIN_PUBLIC_HEADERS
-		api console context core_exports custom_tables data_tables diagnostics
+		api console context core_exports custom_tables data_tables diagnostics encounters
 		game_rules handles hooks http input inventory item item_interactions lifecycle lifecycle_events
 		localization logging network panels patching reimplementation_exports
 		resource resources services shared_events threads version widgets
@@ -65,8 +78,12 @@ if(D2RLPLUGIN_BUILD_TESTS)
 	target_link_libraries(D2RLPluginHeaderTests PRIVATE D2RLPlugin::D2RLPlugin)
 	add_executable(D2RLPluginContractTests tests/item_contract_tests.cpp)
 	target_link_libraries(D2RLPluginContractTests PRIVATE D2RLPlugin::D2RLPlugin)
+	target_compile_definitions(D2RLPluginContractTests PRIVATE D2RLPLUGIN_EXPECTED_SDK_VERSION="${PROJECT_VERSION}")
 	add_test(NAME D2RLPluginContracts COMMAND D2RLPluginContractTests)
-	add_custom_target(D2RLPluginTests DEPENDS D2RLPluginHeaderTests D2RLPluginContractTests)
+	add_executable(D2RLPluginServiceTests tests/service_contract_tests.cpp)
+	target_link_libraries(D2RLPluginServiceTests PRIVATE D2RLPlugin::D2RLPlugin)
+	add_test(NAME D2RLPluginServices COMMAND D2RLPluginServiceTests)
+	add_custom_target(D2RLPluginTests DEPENDS D2RLPluginHeaderTests D2RLPluginContractTests D2RLPluginServiceTests)
 endif()
 
 if(NOT D2RLPLUGIN_BUILD_EXAMPLES)

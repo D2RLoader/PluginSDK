@@ -75,21 +75,23 @@ static_assert(sizeof(HookStatus) == 96);
 
 }
 
-struct DiagnosticsServiceV1 {
+struct DiagnosticsService {
+	static constexpr ServiceId Id         = ServiceId::Diagnostics;
+	static constexpr uint32_t  AbiVersion = 1;
+
 	uint32_t                       serviceSize;
 	uint32_t                       serviceVersion;
 	Diagnostics::QueryHookStatusFn queryHookStatus;
 };
 
-inline constexpr uint32_t DiagnosticsServiceV1Version      = 1;
-inline constexpr uint32_t DiagnosticsServiceV1Size         = static_cast<uint32_t>(sizeof(DiagnosticsServiceV1));
-inline constexpr uint32_t DiagnosticsServiceV1RequiredSize = DiagnosticsServiceV1Size;
+inline constexpr uint32_t DiagnosticsServiceSize         = static_cast<uint32_t>(sizeof(DiagnosticsService));
+inline constexpr uint32_t DiagnosticsServiceRequiredSize = DiagnosticsServiceSize;
 
-inline auto HasDiagnosticsServiceV1Field(const DiagnosticsServiceV1* service, uint32_t fieldEndOffset) noexcept -> bool {
-	return service != nullptr && service->serviceVersion == DiagnosticsServiceV1Version && service->serviceSize >= fieldEndOffset;
+inline auto HasDiagnosticsServiceField(const DiagnosticsService* service, uint32_t fieldEndOffset) noexcept -> bool {
+	return service != nullptr && service->serviceVersion == DiagnosticsService::AbiVersion && service->serviceSize >= fieldEndOffset;
 }
 
-static_assert(std::is_standard_layout_v<DiagnosticsServiceV1> && std::is_trivially_copyable_v<DiagnosticsServiceV1>);
-static_assert(sizeof(DiagnosticsServiceV1) == 16);
+static_assert(std::is_standard_layout_v<DiagnosticsService> && std::is_trivially_copyable_v<DiagnosticsService>);
+static_assert(sizeof(DiagnosticsService) == 16);
 
 }

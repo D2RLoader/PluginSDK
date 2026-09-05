@@ -111,7 +111,10 @@ static_assert(sizeof(RegistrationInfo) == 40);
 
 }
 
-struct ResourceServiceV1 {
+struct ResourceService {
+	static constexpr ServiceId Id         = ServiceId::Resource;
+	static constexpr uint32_t  AbiVersion = 1;
+
 	uint32_t                         serviceSize;
 	uint32_t                         serviceVersion;
 	Resources::RegisterResourceFn    registerResource;
@@ -119,22 +122,21 @@ struct ResourceServiceV1 {
 	Resources::GetRegistrationInfoFn getRegistrationInfo;
 };
 
-inline constexpr uint32_t ResourceServiceV1Version      = 1;
-inline constexpr uint32_t ResourceServiceV1Size         = static_cast<uint32_t>(sizeof(ResourceServiceV1));
-inline constexpr uint32_t ResourceServiceV1RequiredSize = static_cast<uint32_t>(offsetof(ResourceServiceV1, getRegistrationInfo) + sizeof(Resources::GetRegistrationInfoFn));
+inline constexpr uint32_t ResourceServiceSize         = static_cast<uint32_t>(sizeof(ResourceService));
+inline constexpr uint32_t ResourceServiceRequiredSize = static_cast<uint32_t>(offsetof(ResourceService, getRegistrationInfo) + sizeof(Resources::GetRegistrationInfoFn));
 
-inline auto HasResourceServiceV1Field(const ResourceServiceV1* service, uint32_t fieldEndOffset) noexcept -> bool {
-	return service != nullptr && service->serviceVersion == ResourceServiceV1Version && service->serviceSize >= fieldEndOffset;
+inline auto HasResourceServiceField(const ResourceService* service, uint32_t fieldEndOffset) noexcept -> bool {
+	return service != nullptr && service->serviceVersion == ResourceService::AbiVersion && service->serviceSize >= fieldEndOffset;
 }
 
-static_assert(std::is_standard_layout_v<ResourceServiceV1>);
-static_assert(std::is_trivially_copyable_v<ResourceServiceV1>);
-static_assert(offsetof(ResourceServiceV1, serviceSize) == 0);
-static_assert(offsetof(ResourceServiceV1, serviceVersion) == 4);
-static_assert(offsetof(ResourceServiceV1, registerResource) == 8);
-static_assert(offsetof(ResourceServiceV1, unregisterResource) == 16);
-static_assert(offsetof(ResourceServiceV1, getRegistrationInfo) == 24);
-static_assert(ResourceServiceV1RequiredSize == 32);
-static_assert(sizeof(ResourceServiceV1) == 32);
+static_assert(std::is_standard_layout_v<ResourceService>);
+static_assert(std::is_trivially_copyable_v<ResourceService>);
+static_assert(offsetof(ResourceService, serviceSize) == 0);
+static_assert(offsetof(ResourceService, serviceVersion) == 4);
+static_assert(offsetof(ResourceService, registerResource) == 8);
+static_assert(offsetof(ResourceService, unregisterResource) == 16);
+static_assert(offsetof(ResourceService, getRegistrationInfo) == 24);
+static_assert(ResourceServiceRequiredSize == 32);
+static_assert(sizeof(ResourceService) == 32);
 
 }

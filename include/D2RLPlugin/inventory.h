@@ -2,6 +2,7 @@
 
 #include <D2RLPlugin/handles.h>
 #include <D2RLPlugin/item.h>
+#include <D2RLPlugin/services.h>
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
@@ -400,7 +401,10 @@ static_assert(sizeof(ItemFilter) == 16);
 
 }
 
-struct InventoryServiceV1 {
+struct InventoryService {
+	static constexpr ServiceId Id         = ServiceId::Inventory;
+	static constexpr uint32_t  AbiVersion = 1;
+
 	uint32_t                                    serviceSize;
 	uint32_t                                    serviceVersion;
 	Inventory::RegisterPlayerPageFn             registerPlayerPage;
@@ -418,45 +422,44 @@ struct InventoryServiceV1 {
 	Inventory::ForEachInventoryItemFn           forEachInventoryItem;
 };
 
-inline constexpr uint32_t InventoryServiceV1Version                     = 1;
-inline constexpr uint32_t InventoryServiceV1Size                        = static_cast<uint32_t>(sizeof(InventoryServiceV1));
-inline constexpr uint32_t InventoryServiceV1RequiredSize                = InventoryServiceV1Size;
-inline constexpr uint32_t InventoryServiceV1ConfigurePlayerPageFieldEnd = static_cast<uint32_t>(offsetof(InventoryServiceV1, configurePlayerPage) + sizeof(Inventory::ConfigurePlayerPageFn));
-inline constexpr uint32_t InventoryServiceV1GetPlayerPageConfigurationInfoFieldEnd
-    = static_cast<uint32_t>(offsetof(InventoryServiceV1, getPlayerPageConfigurationInfo) + sizeof(Inventory::GetPlayerPageConfigurationInfoFn));
-inline constexpr uint32_t InventoryServiceV1ExecuteLocalPlayerMoveFieldEnd = static_cast<uint32_t>(offsetof(InventoryServiceV1, executeLocalPlayerMove) + sizeof(Inventory::ExecuteLocalPlayerMoveFn));
-inline constexpr uint32_t InventoryServiceV1IsItemTypeCodeKnownFieldEnd    = static_cast<uint32_t>(offsetof(InventoryServiceV1, isItemTypeCodeKnown) + sizeof(Inventory::IsItemTypeCodeKnownFn));
-inline constexpr uint32_t InventoryServiceV1ConfigurePlayerPageItemPolicyFieldEnd
-    = static_cast<uint32_t>(offsetof(InventoryServiceV1, configurePlayerPageItemPolicy) + sizeof(Inventory::ConfigurePlayerPageItemPolicyFn));
-inline constexpr uint32_t InventoryServiceV1ConfigurePlayerPageCharmPolicyFieldEnd
-    = static_cast<uint32_t>(offsetof(InventoryServiceV1, configurePlayerPageCharmPolicy) + sizeof(Inventory::ConfigurePlayerPageCharmPolicyFn));
+inline constexpr uint32_t InventoryServiceSize                        = static_cast<uint32_t>(sizeof(InventoryService));
+inline constexpr uint32_t InventoryServiceRequiredSize                = InventoryServiceSize;
+inline constexpr uint32_t InventoryServiceConfigurePlayerPageFieldEnd = static_cast<uint32_t>(offsetof(InventoryService, configurePlayerPage) + sizeof(Inventory::ConfigurePlayerPageFn));
+inline constexpr uint32_t InventoryServiceGetPlayerPageConfigurationInfoFieldEnd
+    = static_cast<uint32_t>(offsetof(InventoryService, getPlayerPageConfigurationInfo) + sizeof(Inventory::GetPlayerPageConfigurationInfoFn));
+inline constexpr uint32_t InventoryServiceExecuteLocalPlayerMoveFieldEnd = static_cast<uint32_t>(offsetof(InventoryService, executeLocalPlayerMove) + sizeof(Inventory::ExecuteLocalPlayerMoveFn));
+inline constexpr uint32_t InventoryServiceIsItemTypeCodeKnownFieldEnd    = static_cast<uint32_t>(offsetof(InventoryService, isItemTypeCodeKnown) + sizeof(Inventory::IsItemTypeCodeKnownFn));
+inline constexpr uint32_t InventoryServiceConfigurePlayerPageItemPolicyFieldEnd
+    = static_cast<uint32_t>(offsetof(InventoryService, configurePlayerPageItemPolicy) + sizeof(Inventory::ConfigurePlayerPageItemPolicyFn));
+inline constexpr uint32_t InventoryServiceConfigurePlayerPageCharmPolicyFieldEnd
+    = static_cast<uint32_t>(offsetof(InventoryService, configurePlayerPageCharmPolicy) + sizeof(Inventory::ConfigurePlayerPageCharmPolicyFn));
 
-inline auto HasInventoryServiceV1Field(const InventoryServiceV1* service, uint32_t fieldEndOffset) noexcept -> bool {
-	return service != nullptr && service->serviceVersion == InventoryServiceV1Version && service->serviceSize >= fieldEndOffset;
+inline auto HasInventoryServiceField(const InventoryService* service, uint32_t fieldEndOffset) noexcept -> bool {
+	return service != nullptr && service->serviceVersion == InventoryService::AbiVersion && service->serviceSize >= fieldEndOffset;
 }
 
-static_assert(std::is_standard_layout_v<InventoryServiceV1>);
-static_assert(std::is_trivially_copyable_v<InventoryServiceV1>);
-static_assert(offsetof(InventoryServiceV1, registerPlayerPage) == 8);
-static_assert(offsetof(InventoryServiceV1, unregisterPlayerPage) == 16);
-static_assert(offsetof(InventoryServiceV1, getRegistrationInfo) == 24);
-static_assert(offsetof(InventoryServiceV1, configurePlayerPage) == 32);
-static_assert(offsetof(InventoryServiceV1, getPlayerPageConfigurationInfo) == 40);
-static_assert(offsetof(InventoryServiceV1, executeLocalPlayerMove) == 48);
-static_assert(offsetof(InventoryServiceV1, isItemTypeCodeKnown) == 56);
-static_assert(offsetof(InventoryServiceV1, configurePlayerPageItemPolicy) == 64);
-static_assert(offsetof(InventoryServiceV1, configurePlayerPageCharmPolicy) == 72);
-static_assert(offsetof(InventoryServiceV1, getLocalPlayer) == 80);
-static_assert(offsetof(InventoryServiceV1, getCursorItem) == 88);
-static_assert(offsetof(InventoryServiceV1, getEquippedItem) == 96);
-static_assert(offsetof(InventoryServiceV1, forEachInventoryItem) == 104);
-static_assert(InventoryServiceV1RequiredSize == 112);
-static_assert(InventoryServiceV1ConfigurePlayerPageFieldEnd == 40);
-static_assert(InventoryServiceV1GetPlayerPageConfigurationInfoFieldEnd == 48);
-static_assert(InventoryServiceV1ExecuteLocalPlayerMoveFieldEnd == 56);
-static_assert(InventoryServiceV1IsItemTypeCodeKnownFieldEnd == 64);
-static_assert(InventoryServiceV1ConfigurePlayerPageItemPolicyFieldEnd == 72);
-static_assert(InventoryServiceV1ConfigurePlayerPageCharmPolicyFieldEnd == 80);
-static_assert(sizeof(InventoryServiceV1) == 112);
+static_assert(std::is_standard_layout_v<InventoryService>);
+static_assert(std::is_trivially_copyable_v<InventoryService>);
+static_assert(offsetof(InventoryService, registerPlayerPage) == 8);
+static_assert(offsetof(InventoryService, unregisterPlayerPage) == 16);
+static_assert(offsetof(InventoryService, getRegistrationInfo) == 24);
+static_assert(offsetof(InventoryService, configurePlayerPage) == 32);
+static_assert(offsetof(InventoryService, getPlayerPageConfigurationInfo) == 40);
+static_assert(offsetof(InventoryService, executeLocalPlayerMove) == 48);
+static_assert(offsetof(InventoryService, isItemTypeCodeKnown) == 56);
+static_assert(offsetof(InventoryService, configurePlayerPageItemPolicy) == 64);
+static_assert(offsetof(InventoryService, configurePlayerPageCharmPolicy) == 72);
+static_assert(offsetof(InventoryService, getLocalPlayer) == 80);
+static_assert(offsetof(InventoryService, getCursorItem) == 88);
+static_assert(offsetof(InventoryService, getEquippedItem) == 96);
+static_assert(offsetof(InventoryService, forEachInventoryItem) == 104);
+static_assert(InventoryServiceRequiredSize == 112);
+static_assert(InventoryServiceConfigurePlayerPageFieldEnd == 40);
+static_assert(InventoryServiceGetPlayerPageConfigurationInfoFieldEnd == 48);
+static_assert(InventoryServiceExecuteLocalPlayerMoveFieldEnd == 56);
+static_assert(InventoryServiceIsItemTypeCodeKnownFieldEnd == 64);
+static_assert(InventoryServiceConfigurePlayerPageItemPolicyFieldEnd == 72);
+static_assert(InventoryServiceConfigurePlayerPageCharmPolicyFieldEnd == 80);
+static_assert(sizeof(InventoryService) == 112);
 
 }

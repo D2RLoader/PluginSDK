@@ -6,7 +6,7 @@
 
 static constexpr D2RL::PluginInfo DataTablesPluginInfo {
 	.infoSize    = D2RL::PluginInfoSize,
-	.apiVersion  = D2RL_PLUGIN_API_VERSION,
+	.abiVersion  = D2RL_PLUGIN_ABI_VERSION,
 	.id          = "data-tables-sample",
 	.name        = "Data Tables Sample Plugin",
 	.version     = "0.1.0",
@@ -40,13 +40,14 @@ static constexpr std::array<D2RL::CustomTables::ColumnDefinition, 2> OfferColumn
 										  },
 };
 
-static const D2RL::DataTableServiceV1*   dataTables;
-static const D2RL::CustomTableServiceV1* customTables;
+static const D2RL::DataTableService*     dataTables;
+static const D2RL::CustomTableService*   customTables;
 static D2RL::CustomTables::TableHandle   offerTable = D2RL::CustomTables::InvalidHandle;
 
 static auto ReportLevels(const D2RL::PluginContext* context, uint64_t expectedRevision) noexcept -> bool {
 	D2RL::DataTables::TableView levels {
 		.structSize = D2RL::DataTables::TableViewSize,
+		.bank       = D2RL::DataTables::Bank::Rotw,
 	};
 	const auto tableResult = dataTables->getTable(context, D2RL::DataTables::Bank::Rotw, D2RL::DataTables::TableId::Levels, &levels);
 	if (tableResult != D2RL::DataTables::Result::Success || levels.revision != expectedRevision) {
@@ -55,6 +56,7 @@ static auto ReportLevels(const D2RL::PluginContext* context, uint64_t expectedRe
 
 	D2RL::DataTables::RowView level {
 		.structSize = D2RL::DataTables::RowViewSize,
+		.bank       = D2RL::DataTables::Bank::Rotw,
 	};
 	const auto rowResult = dataTables->findRowById(context, D2RL::DataTables::Bank::Rotw, D2RL::DataTables::TableId::Levels, 124, &level);
 	if (rowResult != D2RL::DataTables::Result::Success || level.revision != expectedRevision) {
@@ -144,24 +146,24 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) 
 		return false;
 	}
 
-	const D2RL::DataTableServiceV1* tables          = nullptr;
-	const auto                      dataTableResult = context->QueryService(D2RL::ServiceId::DataTable, D2RL::DataTableServiceV1Version, &tables);
+	const D2RL::DataTableService* tables          = nullptr;
+	const auto                    dataTableResult = context->QueryService(&tables);
 	if (dataTableResult != D2RL::ServiceQueryResult::Success || tables == nullptr) {
 		return false;
 	}
 	dataTables = tables;
-	if (!D2RL::HasDataTableServiceV1Field(dataTables, D2RL::DataTableServiceV1RequiredSize)) {
+	if (!D2RL::HasDataTableServiceField(dataTables, D2RL::DataTableServiceRequiredSize)) {
 		return false;
 	}
 
-	const D2RL::ResourceServiceV1* resources             = nullptr;
-	const auto                     resourceServiceResult = context->QueryService(D2RL::ServiceId::Resource, D2RL::ResourceServiceV1Version, &resources);
-	if (resourceServiceResult != D2RL::ServiceQueryResult::Success || !D2RL::HasResourceServiceV1Field(resources, D2RL::ResourceServiceV1RequiredSize)) {
+	const D2RL::ResourceService* resources             = nullptr;
+	const auto                   resourceServiceResult = context->QueryService(&resources);
+	if (resourceServiceResult != D2RL::ServiceQueryResult::Success || !D2RL::HasResourceServiceField(resources, D2RL::ResourceServiceRequiredSize)) {
 		return false;
 	}
-	const D2RL::CustomTableServiceV1* customTableService = nullptr;
-	const auto                        customTableResult  = context->QueryService(D2RL::ServiceId::CustomTable, D2RL::CustomTableServiceV1Version, &customTableService);
-	if (customTableResult != D2RL::ServiceQueryResult::Success || !D2RL::HasCustomTableServiceV1Field(customTableService, D2RL::CustomTableServiceV1RequiredSize)) {
+	const D2RL::CustomTableService* customTableService = nullptr;
+	const auto                      customTableResult  = context->QueryService(&customTableService);
+	if (customTableResult != D2RL::ServiceQueryResult::Success || !D2RL::HasCustomTableServiceField(customTableService, D2RL::CustomTableServiceRequiredSize)) {
 		return false;
 	}
 	customTables = customTableService;
@@ -189,13 +191,13 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) 
 		return false;
 	}
 
-	const D2RL::LifecycleServiceV1* lifecycle       = nullptr;
-	const auto                      lifecycleResult = context->QueryService(D2RL::ServiceId::Lifecycle, D2RL::LifecycleServiceV1Version, &lifecycle);
+	const D2RL::LifecycleService* lifecycle       = nullptr;
+	const auto                    lifecycleResult = context->QueryService(&lifecycle);
 	if (lifecycleResult != D2RL::ServiceQueryResult::Success || lifecycle == nullptr) {
 		return false;
 	}
 
-	if (!D2RL::HasLifecycleServiceV1Field(lifecycle, D2RL::LifecycleServiceV1RequiredSize)) {
+	if (!D2RL::HasLifecycleServiceField(lifecycle, D2RL::LifecycleServiceRequiredSize)) {
 		return false;
 	}
 

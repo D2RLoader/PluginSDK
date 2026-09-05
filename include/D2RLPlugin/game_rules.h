@@ -38,7 +38,10 @@ static_assert(sizeof(Result) == sizeof(uint32_t));
 
 }
 
-struct GameRuleServiceV1 {
+struct GameRuleService {
+	static constexpr ServiceId Id         = ServiceId::GameRule;
+	static constexpr uint32_t  AbiVersion = 1;
+
 	uint32_t                             serviceSize;
 	uint32_t                             serviceVersion;
 	GameRules::GetMaxSocketsFn           getMaxSockets;
@@ -47,15 +50,14 @@ struct GameRuleServiceV1 {
 	GameRules::CanAllocateSkillFn        canAllocateSkill;
 };
 
-inline constexpr uint32_t GameRuleServiceV1Version      = 1;
-inline constexpr uint32_t GameRuleServiceV1Size         = static_cast<uint32_t>(sizeof(GameRuleServiceV1));
-inline constexpr uint32_t GameRuleServiceV1RequiredSize = GameRuleServiceV1Size;
+inline constexpr uint32_t GameRuleServiceSize         = static_cast<uint32_t>(sizeof(GameRuleService));
+inline constexpr uint32_t GameRuleServiceRequiredSize = GameRuleServiceSize;
 
-inline auto HasGameRuleServiceV1Field(const GameRuleServiceV1* service, uint32_t fieldEndOffset) noexcept -> bool {
-	return service != nullptr && service->serviceVersion == GameRuleServiceV1Version && service->serviceSize >= fieldEndOffset;
+inline auto HasGameRuleServiceField(const GameRuleService* service, uint32_t fieldEndOffset) noexcept -> bool {
+	return service != nullptr && service->serviceVersion == GameRuleService::AbiVersion && service->serviceSize >= fieldEndOffset;
 }
 
-static_assert(std::is_standard_layout_v<GameRuleServiceV1> && std::is_trivially_copyable_v<GameRuleServiceV1>);
-static_assert(sizeof(GameRuleServiceV1) == 40);
+static_assert(std::is_standard_layout_v<GameRuleService> && std::is_trivially_copyable_v<GameRuleService>);
+static_assert(sizeof(GameRuleService) == 40);
 
 }

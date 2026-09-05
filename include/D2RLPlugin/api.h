@@ -6,6 +6,7 @@
 #include <D2RLPlugin/custom_tables.h>
 #include <D2RLPlugin/data_tables.h>
 #include <D2RLPlugin/diagnostics.h>
+#include <D2RLPlugin/encounters.h>
 #include <D2RLPlugin/game_rules.h>
 #include <D2RLPlugin/handles.h>
 #include <D2RLPlugin/hooks.h>

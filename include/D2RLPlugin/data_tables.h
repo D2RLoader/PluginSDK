@@ -32,8 +32,7 @@ enum class Bank : uint32_t {
 	Rotw    = 3,
 };
 
-// These ids are permanent ABI values. Later API versions may add ids, but do not
-// renumber the existing ones.
+// Table ids keep the same values across SDK releases. New releases may add ids.
 enum class TableId : uint32_t {
 	Unknown              = 0,
 	PlayerClass          = 1,
@@ -225,7 +224,10 @@ static_assert(sizeof(RowView) == 48);
 
 }
 
-struct DataTableServiceV1 {
+struct DataTableService {
+	static constexpr ServiceId Id         = ServiceId::DataTable;
+	static constexpr uint32_t  AbiVersion = 1;
+
 	uint32_t                    serviceSize;
 	uint32_t                    serviceVersion;
 	DataTables::GetTableFn      getTable;
@@ -234,23 +236,22 @@ struct DataTableServiceV1 {
 	DataTables::FindRowByCodeFn findRowByCode;
 };
 
-inline constexpr uint32_t DataTableServiceV1Version      = 1;
-inline constexpr uint32_t DataTableServiceV1Size         = static_cast<uint32_t>(sizeof(DataTableServiceV1));
-inline constexpr uint32_t DataTableServiceV1RequiredSize = static_cast<uint32_t>(offsetof(DataTableServiceV1, findRowByCode) + sizeof(DataTables::FindRowByCodeFn));
+inline constexpr uint32_t DataTableServiceSize         = static_cast<uint32_t>(sizeof(DataTableService));
+inline constexpr uint32_t DataTableServiceRequiredSize = static_cast<uint32_t>(offsetof(DataTableService, findRowByCode) + sizeof(DataTables::FindRowByCodeFn));
 
-inline auto HasDataTableServiceV1Field(const DataTableServiceV1* service, uint32_t fieldEndOffset) noexcept -> bool {
-	return service != nullptr && service->serviceVersion == DataTableServiceV1Version && service->serviceSize >= fieldEndOffset;
+inline auto HasDataTableServiceField(const DataTableService* service, uint32_t fieldEndOffset) noexcept -> bool {
+	return service != nullptr && service->serviceVersion == DataTableService::AbiVersion && service->serviceSize >= fieldEndOffset;
 }
 
-static_assert(std::is_standard_layout_v<DataTableServiceV1>);
-static_assert(std::is_trivially_copyable_v<DataTableServiceV1>);
-static_assert(offsetof(DataTableServiceV1, serviceSize) == 0);
-static_assert(offsetof(DataTableServiceV1, serviceVersion) == 4);
-static_assert(offsetof(DataTableServiceV1, getTable) == 8);
-static_assert(offsetof(DataTableServiceV1, getRow) == 16);
-static_assert(offsetof(DataTableServiceV1, findRowById) == 24);
-static_assert(offsetof(DataTableServiceV1, findRowByCode) == 32);
-static_assert(DataTableServiceV1RequiredSize == 40);
-static_assert(sizeof(DataTableServiceV1) == 40);
+static_assert(std::is_standard_layout_v<DataTableService>);
+static_assert(std::is_trivially_copyable_v<DataTableService>);
+static_assert(offsetof(DataTableService, serviceSize) == 0);
+static_assert(offsetof(DataTableService, serviceVersion) == 4);
+static_assert(offsetof(DataTableService, getTable) == 8);
+static_assert(offsetof(DataTableService, getRow) == 16);
+static_assert(offsetof(DataTableService, findRowById) == 24);
+static_assert(offsetof(DataTableService, findRowByCode) == 32);
+static_assert(DataTableServiceRequiredSize == 40);
+static_assert(sizeof(DataTableService) == 40);
 
 }

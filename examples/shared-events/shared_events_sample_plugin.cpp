@@ -4,7 +4,7 @@
 
 static constexpr D2RL::PluginInfo SharedEventsPluginInfo {
 	.infoSize    = D2RL::PluginInfoSize,
-	.apiVersion  = D2RL_PLUGIN_API_VERSION,
+	.abiVersion  = D2RL_PLUGIN_ABI_VERSION,
 	.id          = "shared-events-sample",
 	.name        = "Shared Events Sample Plugin",
 	.version     = "0.1.0",
@@ -13,7 +13,7 @@ static constexpr D2RL::PluginInfo SharedEventsPluginInfo {
 	.flags       = D2RL::PluginFlags::Client,
 };
 
-static const D2RL::WidgetServiceV1* widgets;
+static const D2RL::WidgetService* widgets;
 
 static void __cdecl OnItemTooltip(const D2RL::PluginContext*, D2RL::SharedEvents::ItemTooltipEvent* event, void* userData) noexcept {
 	const char* text = static_cast<const char*>(userData);
@@ -78,24 +78,24 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderGetPluginInfo() noexcept -> const D2RL::PluginI
 }
 
 D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) noexcept -> bool {
-	const D2RL::SharedEventServiceV1* events = nullptr;
+	const D2RL::SharedEventService* events = nullptr;
 	if (context == nullptr) {
 		return false;
 	}
 
-	if (context->QueryService(D2RL::ServiceId::SharedEvent, D2RL::SharedEventServiceV1Version, &events) != D2RL::ServiceQueryResult::Success) {
+	if (context->QueryService(&events) != D2RL::ServiceQueryResult::Success) {
 		return false;
 	}
 
-	if (!D2RL::HasSharedEventServiceV1Field(events, D2RL::SharedEventServiceV1RequiredSize)) {
+	if (!D2RL::HasSharedEventServiceField(events, D2RL::SharedEventServiceRequiredSize)) {
 		return false;
 	}
 
-	if (context->QueryService(D2RL::ServiceId::Widget, D2RL::WidgetServiceV1Version, &widgets) != D2RL::ServiceQueryResult::Success) {
+	if (context->QueryService(&widgets) != D2RL::ServiceQueryResult::Success) {
 		return false;
 	}
 
-	if (!D2RL::HasWidgetServiceV1Field(widgets, D2RL::WidgetServiceV1RequiredSize)) {
+	if (!D2RL::HasWidgetServiceField(widgets, D2RL::WidgetServiceRequiredSize)) {
 		return false;
 	}
 

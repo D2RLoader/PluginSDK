@@ -134,10 +134,10 @@ constexpr auto MakeItemCode(const char (&value)[Size]) noexcept -> uint32_t {
 // recipe engine, so one property may change several stats. Use equal minimum
 // and maximum values for an exact result.
 struct PropertySpec {
-		uint32_t propertyId;
-		int32_t  parameter;
-		int32_t  minimum;
-		int32_t  maximum;
+	uint32_t propertyId;
+	int32_t  parameter;
+	int32_t  minimum;
+	int32_t  maximum;
 };
 
 constexpr auto MakeExactProperty(uint32_t propertyId, int32_t value, int32_t parameter = 0) noexcept -> PropertySpec {
@@ -147,13 +147,13 @@ constexpr auto MakeExactProperty(uint32_t propertyId, int32_t value, int32_t par
 // Automatic finds the first free cell. Exact uses x/y as a top-left inventory
 // cell or a ground coordinate. customPageHandle is required only for CustomPage.
 struct ItemDestination {
-		uint32_t      structSize;
-		uint32_t      flags;
-		ItemContainer container;
-		Placement     placement;
-		uint64_t      customPageHandle;
-		uint32_t      x;
-		uint32_t      y;
+	uint32_t      structSize;
+	uint32_t      flags;
+	ItemContainer container;
+	Placement     placement;
+	uint64_t      customPageHandle;
+	uint32_t      x;
+	uint32_t      y;
 };
 
 // qualityRecordId is a zero-based SetItems or UniqueItems row for forced Set or
@@ -164,24 +164,24 @@ struct ItemDestination {
 // quantity and durability use DefaultValue to keep the native default.
 // socketCount is the exact number of empty sockets requested.
 struct ItemCreateSpec {
-		uint32_t            structSize;
-		uint32_t            flags;
-		uint32_t            code;
-		Quality             quality;
-		uint32_t            qualityRecordId;
-		uint32_t            itemLevel;
-		uint32_t            prefixIds[3];
-		uint32_t            suffixIds[3];
-		SeedMode            seedMode;
-		uint32_t            generationSeed;
-		uint32_t            itemSeed;
-		uint32_t            quantity;
-		uint32_t            durability;
-		uint32_t            socketCount;
-		uint32_t            stateFlags;
-		uint32_t            propertyCount;
-		const PropertySpec* properties;
-		ItemDestination     destination;
+	uint32_t            structSize;
+	uint32_t            flags;
+	uint32_t            code;
+	Quality             quality;
+	uint32_t            qualityRecordId;
+	uint32_t            itemLevel;
+	uint32_t            prefixIds[3];
+	uint32_t            suffixIds[3];
+	SeedMode            seedMode;
+	uint32_t            generationSeed;
+	uint32_t            itemSeed;
+	uint32_t            quantity;
+	uint32_t            durability;
+	uint32_t            socketCount;
+	uint32_t            stateFlags;
+	uint32_t            propertyCount;
+	const PropertySpec* properties;
+	ItemDestination     destination;
 };
 
 // This is a copy. quantity is one for a non-stackable item. qualityRecordId is
@@ -189,54 +189,54 @@ struct ItemCreateSpec {
 // prefixes and suffixes are native one-based MagicAffix ids. sharedStashPage is
 // UINT32_MAX when the tab is not known.
 struct ItemInfo {
-		uint32_t      structSize;
-		uint32_t      flags;
-		ItemHandle    handle;
-		uint32_t      code;
-		uint32_t      classId;
-		uint32_t      runtimeId;
-		ItemContainer container;
-		int32_t       inventoryPage;
-		uint32_t      sharedStashPage;
-		int32_t       bodyLocation;
-		int32_t       x;
-		int32_t       y;
-		Quality       quality;
-		uint32_t      itemLevel;
-		int32_t       quantity;
-		int32_t       durability;
-		int32_t       maximumDurability;
-		int32_t       qualityRecordId;
-		uint32_t      generationSeed;
-		uint32_t      itemSeed;
-		uint32_t      stateFlags;
-		uint32_t      socketCount;
-		uint32_t      socketedItemCount;
-		uint32_t      prefixIds[3];
-		uint32_t      suffixIds[3];
+	uint32_t      structSize;
+	uint32_t      flags;
+	ItemHandle    handle;
+	uint32_t      code;
+	uint32_t      classId;
+	uint32_t      runtimeId;
+	ItemContainer container;
+	int32_t       inventoryPage;
+	uint32_t      sharedStashPage;
+	int32_t       bodyLocation;
+	int32_t       x;
+	int32_t       y;
+	Quality       quality;
+	uint32_t      itemLevel;
+	int32_t       quantity;
+	int32_t       durability;
+	int32_t       maximumDurability;
+	int32_t       qualityRecordId;
+	uint32_t      generationSeed;
+	uint32_t      itemSeed;
+	uint32_t      stateFlags;
+	uint32_t      socketCount;
+	uint32_t      socketedItemCount;
+	uint32_t      prefixIds[3];
+	uint32_t      suffixIds[3];
 };
 
 // fields chooses what changes. The public handle and native item stay intact.
 // Turning ethereal off is unsupported because D2R's native 3/2 base-stat
 // conversion cannot be safely reversed.
 struct ItemEdit {
-		uint32_t structSize;
-		uint32_t flags;
-		uint32_t fields;
-		uint32_t stateFlags;
-		uint32_t quantity;
-		uint32_t durability;
-		uint32_t itemLevel;
-		uint32_t socketCount;
+	uint32_t structSize;
+	uint32_t flags;
+	uint32_t fields;
+	uint32_t stateFlags;
+	uint32_t quantity;
+	uint32_t durability;
+	uint32_t itemLevel;
+	uint32_t socketCount;
 };
 
 // quantity is the logical amount consumed. Non-stackable items have a logical
 // quantity of one. Consuming less than a stack updates it in place; consuming
 // the whole logical quantity destroys it after the transaction commits.
 struct TransactionInput {
-		ItemHandle         item;
-		uint32_t           quantity;
-		SocketedItemPolicy socketedItemPolicy;
+	ItemHandle         item;
+	uint32_t           quantity;
+	SocketedItemPolicy socketedItemPolicy;
 };
 
 // Every input and output belongs to player. D2RLoader writes output handles only
@@ -244,23 +244,23 @@ struct TransactionInput {
 // validation, creation, placement, or capacity fails, nothing commits and every
 // staged native item is rolled back.
 struct Transaction {
-		uint32_t                structSize;
-		uint32_t                flags;
-		PlayerHandle            player;
-		uint32_t                inputCount;
-		uint32_t                outputCount;
-		const TransactionInput* inputs;
-		const ItemCreateSpec*   outputs;
-		ItemHandle*             outputItems;
-		uint32_t                outputCapacity;
-		uint32_t                reserved;
+	uint32_t                structSize;
+	uint32_t                flags;
+	PlayerHandle            player;
+	uint32_t                inputCount;
+	uint32_t                outputCount;
+	const TransactionInput* inputs;
+	const ItemCreateSpec*   outputs;
+	ItemHandle*             outputItems;
+	uint32_t                outputCapacity;
+	uint32_t                reserved;
 };
 
 struct TransactionResult {
-		uint32_t structSize;
-		uint32_t flags;
-		uint32_t outputCount;
-		uint32_t reserved;
+	uint32_t structSize;
+	uint32_t flags;
+	uint32_t outputCount;
+	uint32_t reserved;
 };
 
 enum class ExistingItemOperationKind : uint32_t {
@@ -270,20 +270,20 @@ enum class ExistingItemOperationKind : uint32_t {
 };
 
 struct ExistingItemDebit {
-		uint32_t quantity;
-		uint32_t reserved;
+	uint32_t quantity;
+	uint32_t reserved;
 };
 
 // Only reversible fields are accepted here. Quantity uses Debit instead.
 struct ExistingItemEdit {
-		uint32_t fields;
-		uint32_t stateFlags;
-		uint32_t durability;
-		uint32_t itemLevel;
+	uint32_t fields;
+	uint32_t stateFlags;
+	uint32_t durability;
+	uint32_t itemLevel;
 };
 
 struct ExistingItemMove {
-		ItemDestination destination;
+	ItemDestination destination;
 };
 
 inline constexpr uint32_t AllExistingItemEditFields = EditFieldBit(EditField::Durability) | EditFieldBit(EditField::Identified) | EditFieldBit(EditField::ItemLevel);
@@ -295,36 +295,36 @@ inline constexpr uint32_t AllExistingItemEditFields = EditFieldBit(EditField::Du
 // Equipment, cursor, belt, shared-stash, trade, corpse, and ground moves are
 // rejected before mutation.
 struct ExistingItemOperation {
-		uint32_t                  structSize;
-		uint32_t                  flags;
-		ExistingItemOperationKind kind;
-		uint32_t                  reserved;
-		ItemHandle                item;
+	uint32_t                  structSize;
+	uint32_t                  flags;
+	ExistingItemOperationKind kind;
+	uint32_t                  reserved;
+	ItemHandle                item;
 
-		union {
-				ExistingItemDebit debit;
-				ExistingItemEdit  edit;
-				ExistingItemMove  move;
-				uint8_t           reservedData[32];
-		};
+	union {
+		ExistingItemDebit debit;
+		ExistingItemEdit  edit;
+		ExistingItemMove  move;
+		uint8_t           reservedData[32];
+	};
 };
 
 struct ExistingItemTransaction {
-		uint32_t                     structSize;
-		uint32_t                     flags;
-		PlayerHandle                 player;
-		uint32_t                     operationCount;
-		uint32_t                     reserved;
-		const ExistingItemOperation* operations;
+	uint32_t                     structSize;
+	uint32_t                     flags;
+	PlayerHandle                 player;
+	uint32_t                     operationCount;
+	uint32_t                     reserved;
+	const ExistingItemOperation* operations;
 };
 
 // failureIndex is NoFailedOperation on success or when failure happened before
 // an operation could be selected. committedOperationCount is zero on failure.
 struct ExistingItemTransactionResult {
-		uint32_t structSize;
-		uint32_t flags;
-		uint32_t committedOperationCount;
-		uint32_t failureIndex;
+	uint32_t structSize;
+	uint32_t flags;
+	uint32_t committedOperationCount;
+	uint32_t failureIndex;
 };
 
 using NativeItemEditCallback = void(__cdecl*)(const PluginContext* context, void* nativeItem, void* userData) noexcept;
@@ -349,21 +349,20 @@ inline constexpr uint32_t ExistingItemTransactionRequiredSize       = ExistingIt
 inline constexpr uint32_t ExistingItemTransactionResultSize         = static_cast<uint32_t>(sizeof(ExistingItemTransactionResult));
 inline constexpr uint32_t ExistingItemTransactionResultRequiredSize = ExistingItemTransactionResultSize;
 
-using GetItemInfoFn        = Result(__cdecl*)(const PluginContext* context, ItemHandle item, ItemInfo* info) noexcept;
+using GetItemInfoFn                    = Result(__cdecl*)(const PluginContext* context, ItemHandle item, ItemInfo* info) noexcept;
 // Mutations require the authoritative game thread. Queue them with
-// ThreadServiceV1::runOnGameThread. Local games and TCP/IP hosts are
+// ThreadService::runOnGameThread. Local games and TCP/IP hosts are
 // authoritative; remote clients receive NotAuthoritative. Normal operations do
 // not require PluginFlags::NativeHooks.
-using CreateItemFn         = Result(__cdecl*)(const PluginContext* context, PlayerHandle player, const ItemCreateSpec* spec, ItemHandle* item) noexcept;
-using EditItemFn           = Result(__cdecl*)(const PluginContext* context, PlayerHandle player, ItemHandle item, const ItemEdit* edit) noexcept;
-using DestroyItemFn        = Result(__cdecl*)(const PluginContext* context, PlayerHandle player, ItemHandle item, SocketedItemPolicy socketedItemPolicy) noexcept;
-using ExecuteTransactionFn = Result(__cdecl*)(const PluginContext* context, const Transaction* transaction, TransactionResult* result) noexcept;
-using ExecuteExistingItemTransactionFn
-    = Result(__cdecl*)(const PluginContext* context, const ExistingItemTransaction* transaction, ExistingItemTransactionResult* result) noexcept;
+using CreateItemFn                     = Result(__cdecl*)(const PluginContext* context, PlayerHandle player, const ItemCreateSpec* spec, ItemHandle* item) noexcept;
+using EditItemFn                       = Result(__cdecl*)(const PluginContext* context, PlayerHandle player, ItemHandle item, const ItemEdit* edit) noexcept;
+using DestroyItemFn                    = Result(__cdecl*)(const PluginContext* context, PlayerHandle player, ItemHandle item, SocketedItemPolicy socketedItemPolicy) noexcept;
+using ExecuteTransactionFn             = Result(__cdecl*)(const PluginContext* context, const Transaction* transaction, TransactionResult* result) noexcept;
+using ExecuteExistingItemTransactionFn = Result(__cdecl*)(const PluginContext* context, const ExistingItemTransaction* transaction, ExistingItemTransactionResult* result) noexcept;
 // Raw-pointer escape hatch. This requires PluginFlags::NativeHooks and the game
 // thread. The pointer expires when the synchronous callback returns. D2RLoader
 // does not validate or publish changes made through it.
-using EditNativeItemFn = Result(__cdecl*)(const PluginContext* context, ItemHandle item, NativeItemEditCallback callback, void* userData) noexcept;
+using EditNativeItemFn                 = Result(__cdecl*)(const PluginContext* context, ItemHandle item, NativeItemEditCallback callback, void* userData) noexcept;
 
 static_assert(sizeof(Result) == sizeof(uint32_t));
 static_assert(sizeof(Quality) == sizeof(uint32_t));
@@ -415,36 +414,38 @@ static_assert(MakeItemCode("r01") == MakeItemCode('r', '0', '1', ' '));
 
 }
 
-struct ItemServiceV1 {
-		uint32_t                                serviceSize;
-		uint32_t                                serviceVersion;
-		Items::GetItemInfoFn                    getItemInfo;
-		Items::CreateItemFn                     createItem;
-		Items::EditItemFn                       editItem;
-		Items::DestroyItemFn                    destroyItem;
-		Items::ExecuteTransactionFn             executeTransaction;
-		Items::EditNativeItemFn                 editNativeItem;
-		Items::ExecuteExistingItemTransactionFn executeExistingItemTransaction;
+struct ItemService {
+	static constexpr ServiceId Id         = ServiceId::Item;
+	static constexpr uint32_t  AbiVersion = 1;
+
+	uint32_t                                serviceSize;
+	uint32_t                                serviceVersion;
+	Items::GetItemInfoFn                    getItemInfo;
+	Items::CreateItemFn                     createItem;
+	Items::EditItemFn                       editItem;
+	Items::DestroyItemFn                    destroyItem;
+	Items::ExecuteTransactionFn             executeTransaction;
+	Items::EditNativeItemFn                 editNativeItem;
+	Items::ExecuteExistingItemTransactionFn executeExistingItemTransaction;
 };
 
-inline constexpr uint32_t ItemServiceV1Version      = 1;
-inline constexpr uint32_t ItemServiceV1Size         = static_cast<uint32_t>(sizeof(ItemServiceV1));
-inline constexpr uint32_t ItemServiceV1RequiredSize = ItemServiceV1Size;
+inline constexpr uint32_t ItemServiceSize         = static_cast<uint32_t>(sizeof(ItemService));
+inline constexpr uint32_t ItemServiceRequiredSize = ItemServiceSize;
 
-inline auto HasItemServiceV1Field(const ItemServiceV1* service, uint32_t fieldEndOffset) noexcept -> bool {
-	return service != nullptr && service->serviceVersion == ItemServiceV1Version && service->serviceSize >= fieldEndOffset;
+inline auto HasItemServiceField(const ItemService* service, uint32_t fieldEndOffset) noexcept -> bool {
+	return service != nullptr && service->serviceVersion == ItemService::AbiVersion && service->serviceSize >= fieldEndOffset;
 }
 
-static_assert(std::is_standard_layout_v<ItemServiceV1>);
-static_assert(std::is_trivially_copyable_v<ItemServiceV1>);
-static_assert(offsetof(ItemServiceV1, getItemInfo) == 8);
-static_assert(offsetof(ItemServiceV1, createItem) == 16);
-static_assert(offsetof(ItemServiceV1, editItem) == 24);
-static_assert(offsetof(ItemServiceV1, destroyItem) == 32);
-static_assert(offsetof(ItemServiceV1, executeTransaction) == 40);
-static_assert(offsetof(ItemServiceV1, editNativeItem) == 48);
-static_assert(offsetof(ItemServiceV1, executeExistingItemTransaction) == 56);
-static_assert(ItemServiceV1RequiredSize == 64);
-static_assert(sizeof(ItemServiceV1) == 64);
+static_assert(std::is_standard_layout_v<ItemService>);
+static_assert(std::is_trivially_copyable_v<ItemService>);
+static_assert(offsetof(ItemService, getItemInfo) == 8);
+static_assert(offsetof(ItemService, createItem) == 16);
+static_assert(offsetof(ItemService, editItem) == 24);
+static_assert(offsetof(ItemService, destroyItem) == 32);
+static_assert(offsetof(ItemService, executeTransaction) == 40);
+static_assert(offsetof(ItemService, editNativeItem) == 48);
+static_assert(offsetof(ItemService, executeExistingItemTransaction) == 56);
+static_assert(ItemServiceRequiredSize == 64);
+static_assert(sizeof(ItemService) == 64);
 
 }

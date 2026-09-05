@@ -4,7 +4,7 @@
 
 static constexpr D2RL::PluginInfo GameplayLifecyclePluginInfo {
 	.infoSize    = D2RL::PluginInfoSize,
-	.apiVersion  = D2RL_PLUGIN_API_VERSION,
+	.abiVersion  = D2RL_PLUGIN_ABI_VERSION,
 	.id          = "gameplay-lifecycle-sample",
 	.name        = "Gameplay Lifecycle Sample Plugin",
 	.version     = "0.1.0",
@@ -33,7 +33,16 @@ static void __cdecl OnGameplayEvent(const D2RL::PluginContext* context, const D2
 	}
 	char       message[256] {};
 	const auto session = static_cast<unsigned long long>(event->sessionGeneration);
-	std::snprintf(message, sizeof(message), "Lifecycle: %s, player=%u, session=%llu, previous=%d, current=%d, difficulty=%u, quest-row=%u.", EventName(event->kind), event->playerId, session, event->previousValue, event->currentValue, event->difficulty, event->questRecordId);
+	std::snprintf(message,
+		sizeof(message),
+		"Lifecycle: %s, player=%u, session=%llu, previous=%d, current=%d, difficulty=%u, quest-row=%u.",
+		EventName(event->kind),
+		event->playerId,
+		session,
+		event->previousValue,
+		event->currentValue,
+		event->difficulty,
+		event->questRecordId);
 	context->LogInfo(message);
 }
 
@@ -42,16 +51,16 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderGetPluginInfo() noexcept -> const D2RL::PluginI
 }
 
 D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) noexcept -> bool {
-	const D2RL::LifecycleServiceV1* lifecycle = nullptr;
+	const D2RL::LifecycleService* lifecycle = nullptr;
 	if (context == nullptr) {
 		return false;
 	}
 
-	if (context->QueryService(D2RL::ServiceId::Lifecycle, D2RL::LifecycleServiceV1Version, &lifecycle) != D2RL::ServiceQueryResult::Success) {
+	if (context->QueryService(&lifecycle) != D2RL::ServiceQueryResult::Success) {
 		return false;
 	}
 
-	if (!D2RL::HasLifecycleServiceV1Field(lifecycle, D2RL::LifecycleServiceV1RequiredSize)) {
+	if (!D2RL::HasLifecycleServiceField(lifecycle, D2RL::LifecycleServiceRequiredSize)) {
 		return false;
 	}
 

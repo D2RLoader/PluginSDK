@@ -32,22 +32,24 @@ static_assert(sizeof(Result) == sizeof(uint32_t));
 
 }
 
-struct LocalizationServiceV1 {
+struct LocalizationService {
+	static constexpr ServiceId Id         = ServiceId::Localization;
+	static constexpr uint32_t  AbiVersion = 1;
+
 	uint32_t                       serviceSize;
 	uint32_t                       serviceVersion;
 	Localization::GetStringByIdFn  getStringById;
 	Localization::GetStringByKeyFn getStringByKey;
 };
 
-inline constexpr uint32_t LocalizationServiceV1Version      = 1;
-inline constexpr uint32_t LocalizationServiceV1Size         = static_cast<uint32_t>(sizeof(LocalizationServiceV1));
-inline constexpr uint32_t LocalizationServiceV1RequiredSize = LocalizationServiceV1Size;
+inline constexpr uint32_t LocalizationServiceSize         = static_cast<uint32_t>(sizeof(LocalizationService));
+inline constexpr uint32_t LocalizationServiceRequiredSize = LocalizationServiceSize;
 
-inline auto HasLocalizationServiceV1Field(const LocalizationServiceV1* service, uint32_t fieldEndOffset) noexcept -> bool {
-	return service != nullptr && service->serviceVersion == LocalizationServiceV1Version && service->serviceSize >= fieldEndOffset;
+inline auto HasLocalizationServiceField(const LocalizationService* service, uint32_t fieldEndOffset) noexcept -> bool {
+	return service != nullptr && service->serviceVersion == LocalizationService::AbiVersion && service->serviceSize >= fieldEndOffset;
 }
 
-static_assert(std::is_standard_layout_v<LocalizationServiceV1> && std::is_trivially_copyable_v<LocalizationServiceV1>);
-static_assert(sizeof(LocalizationServiceV1) == 24);
+static_assert(std::is_standard_layout_v<LocalizationService> && std::is_trivially_copyable_v<LocalizationService>);
+static_assert(sizeof(LocalizationService) == 24);
 
 }

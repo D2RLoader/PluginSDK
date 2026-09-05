@@ -6,7 +6,7 @@
 
 static constexpr D2RL::PluginInfo ConfigFilePluginInfo {
 	.infoSize    = D2RL::PluginInfoSize,
-	.apiVersion  = D2RL_PLUGIN_API_VERSION,
+	.abiVersion  = D2RL_PLUGIN_ABI_VERSION,
 	.id          = "config-file-sample",
 	.name        = "Config File Sample Plugin",
 	.version     = "0.1.0",

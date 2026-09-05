@@ -3,7 +3,7 @@
 
 static constexpr D2RL::PluginInfo HttpsPluginInfo {
 	.infoSize    = D2RL::PluginInfoSize,
-	.apiVersion  = D2RL_PLUGIN_API_VERSION,
+	.abiVersion  = D2RL_PLUGIN_ABI_VERSION,
 	.id          = "https-sample",
 	.name        = "HTTPS Sample Plugin",
 	.version     = "0.1.0",
@@ -12,7 +12,7 @@ static constexpr D2RL::PluginInfo HttpsPluginInfo {
 	.flags       = D2RL::PluginFlags::Client,
 };
 
-static const D2RL::HttpServiceV1* http;
+static const D2RL::HttpService* http;
 
 static void __cdecl OnResponse(const D2RL::PluginContext* context, const D2RL::Http::Response* response, void*) noexcept {
 	if (context == nullptr || !D2RL::Http::HasResponseField(response, D2RL::Http::ResponseRequiredSize)) {
@@ -20,7 +20,14 @@ static void __cdecl OnResponse(const D2RL::PluginContext* context, const D2RL::H
 	}
 
 	char message[256] {};
-	std::snprintf(message, sizeof(message), "HTTPS request %llu finished: result=%u, status=%u, headers=%u, body=%u bytes.", static_cast<unsigned long long>(response->request), static_cast<uint32_t>(response->result), response->statusCode, response->headerCount, response->bodySize);
+	std::snprintf(message,
+		sizeof(message),
+		"HTTPS request %llu finished: result=%u, status=%u, headers=%u, body=%u bytes.",
+		static_cast<unsigned long long>(response->request),
+		static_cast<uint32_t>(response->result),
+		response->statusCode,
+		response->headerCount,
+		response->bodySize);
 	context->LogInfo(message);
 }
 
@@ -54,11 +61,11 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderGetPluginInfo() noexcept -> const D2RL::PluginI
 }
 
 D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) noexcept -> bool {
-	if (context == nullptr || context->QueryService(D2RL::ServiceId::Http, D2RL::HttpServiceV1Version, &http) != D2RL::ServiceQueryResult::Success) {
+	if (context == nullptr || context->QueryService(&http) != D2RL::ServiceQueryResult::Success) {
 		return false;
 	}
 
-	if (!D2RL::HasHttpServiceV1Field(http, D2RL::HttpServiceV1RequiredSize)) {
+	if (!D2RL::HasHttpServiceField(http, D2RL::HttpServiceRequiredSize)) {
 		return false;
 	}
 

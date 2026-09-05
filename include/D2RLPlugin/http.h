@@ -52,40 +52,40 @@ enum class Method : uint32_t {
 // Names and values are UTF-8 and nul-terminated. Request values are copied by
 // send before it returns. Response values are borrowed for the callback only.
 struct Header {
-		const char* name;
-		const char* value;
+	const char* name;
+	const char* value;
 };
 
 // Only https:// URLs are accepted. Zero timeoutMs/maxResponseSize select the
 // defaults above. The body may contain arbitrary bytes. Redirects may stay on
 // HTTPS but are never allowed to downgrade to HTTP.
 struct Request {
-		uint32_t      structSize;
-		uint32_t      flags;
-		Method        method;
-		uint32_t      timeoutMs;
-		const char*   url;
-		uint32_t      headerCount;
-		uint32_t      bodySize;
-		const Header* headers;
-		const void*   body;
-		uint32_t      maxResponseSize;
-		uint32_t      reserved;
+	uint32_t      structSize;
+	uint32_t      flags;
+	Method        method;
+	uint32_t      timeoutMs;
+	const char*   url;
+	uint32_t      headerCount;
+	uint32_t      bodySize;
+	const Header* headers;
+	const void*   body;
+	uint32_t      maxResponseSize;
+	uint32_t      reserved;
 };
 
 // A transport success may still contain an HTTP error status such as 404. The
 // header array, strings, and body are borrowed and valid only during callback.
 // Callbacks run on a worker thread, never the game or UI thread.
 struct Response {
-		uint32_t      structSize;
-		uint32_t      flags;
-		RequestHandle request;
-		Result        result;
-		uint32_t      statusCode;
-		uint32_t      headerCount;
-		uint32_t      bodySize;
-		const Header* headers;
-		const void*   body;
+	uint32_t      structSize;
+	uint32_t      flags;
+	RequestHandle request;
+	Result        result;
+	uint32_t      statusCode;
+	uint32_t      headerCount;
+	uint32_t      bodySize;
+	const Header* headers;
+	const void*   body;
 };
 
 using ResponseCallback = void(__cdecl*)(const PluginContext* context, const Response* response, void* userData) noexcept;
@@ -120,22 +120,24 @@ static_assert(sizeof(Response) == 48);
 
 }
 
-struct HttpServiceV1 {
-		uint32_t       serviceSize;
-		uint32_t       serviceVersion;
-		Http::SendFn   send;
-		Http::CancelFn cancel;
+struct HttpService {
+	static constexpr ServiceId Id         = ServiceId::Http;
+	static constexpr uint32_t  AbiVersion = 1;
+
+	uint32_t       serviceSize;
+	uint32_t       serviceVersion;
+	Http::SendFn   send;
+	Http::CancelFn cancel;
 };
 
-inline constexpr uint32_t HttpServiceV1Version      = 1;
-inline constexpr uint32_t HttpServiceV1Size         = static_cast<uint32_t>(sizeof(HttpServiceV1));
-inline constexpr uint32_t HttpServiceV1RequiredSize = HttpServiceV1Size;
+inline constexpr uint32_t HttpServiceSize         = static_cast<uint32_t>(sizeof(HttpService));
+inline constexpr uint32_t HttpServiceRequiredSize = HttpServiceSize;
 
-inline auto HasHttpServiceV1Field(const HttpServiceV1* service, uint32_t fieldEndOffset) noexcept -> bool {
-	return service != nullptr && service->serviceVersion == HttpServiceV1Version && service->serviceSize >= fieldEndOffset;
+inline auto HasHttpServiceField(const HttpService* service, uint32_t fieldEndOffset) noexcept -> bool {
+	return service != nullptr && service->serviceVersion == HttpService::AbiVersion && service->serviceSize >= fieldEndOffset;
 }
 
-static_assert(std::is_standard_layout_v<HttpServiceV1> && std::is_trivially_copyable_v<HttpServiceV1>);
-static_assert(sizeof(HttpServiceV1) == 24);
+static_assert(std::is_standard_layout_v<HttpService> && std::is_trivially_copyable_v<HttpService>);
+static_assert(sizeof(HttpService) == 24);
 
 }

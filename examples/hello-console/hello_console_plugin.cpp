@@ -2,7 +2,7 @@
 
 static constexpr D2RL::PluginInfo HelloPluginInfo {
 	.infoSize    = D2RL::PluginInfoSize,
-	.apiVersion  = D2RL_PLUGIN_API_VERSION,
+	.abiVersion  = D2RL_PLUGIN_ABI_VERSION,
 	.id          = "hello-console",
 	.name        = "Hello Console Plugin",
 	.version     = "0.1.0",

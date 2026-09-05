@@ -34,22 +34,24 @@ static_assert(sizeof(Result) == sizeof(uint32_t));
 
 }
 
-struct ThreadServiceV1 {
+struct ThreadService {
+	static constexpr ServiceId Id         = ServiceId::Thread;
+	static constexpr uint32_t  AbiVersion = 1;
+
 	uint32_t       serviceSize;
 	uint32_t       serviceVersion;
 	Threads::RunFn runOnUiThread;
 	Threads::RunFn runOnGameThread;
 };
 
-inline constexpr uint32_t ThreadServiceV1Version      = 1;
-inline constexpr uint32_t ThreadServiceV1Size         = static_cast<uint32_t>(sizeof(ThreadServiceV1));
-inline constexpr uint32_t ThreadServiceV1RequiredSize = ThreadServiceV1Size;
+inline constexpr uint32_t ThreadServiceSize         = static_cast<uint32_t>(sizeof(ThreadService));
+inline constexpr uint32_t ThreadServiceRequiredSize = ThreadServiceSize;
 
-inline auto HasThreadServiceV1Field(const ThreadServiceV1* service, uint32_t fieldEndOffset) noexcept -> bool {
-	return service != nullptr && service->serviceVersion == ThreadServiceV1Version && service->serviceSize >= fieldEndOffset;
+inline auto HasThreadServiceField(const ThreadService* service, uint32_t fieldEndOffset) noexcept -> bool {
+	return service != nullptr && service->serviceVersion == ThreadService::AbiVersion && service->serviceSize >= fieldEndOffset;
 }
 
-static_assert(std::is_standard_layout_v<ThreadServiceV1> && std::is_trivially_copyable_v<ThreadServiceV1>);
-static_assert(sizeof(ThreadServiceV1) == 24);
+static_assert(std::is_standard_layout_v<ThreadService> && std::is_trivially_copyable_v<ThreadService>);
+static_assert(sizeof(ThreadService) == 24);
 
 }

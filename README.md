@@ -7,15 +7,20 @@ use D2RLoader's internal code.
 Start with `D2RLPlugin/api.h` and the example closest to what you want to build.
 Most plugins do not need to include each service header separately.
 
-The current API is v4. Version 2 and 3 plugins still work. D2RLoader treats v2
-plugins as shared because v2 did not define client and server roles.
+**SDK release: 0.2.0 · Plugin ABI: 4**
+
+The SDK release tells you which headers and build tools you have. The plugin ABI
+is the agreement on data and function calls between a plugin DLL and the loader.
+The current loader also accepts plugin ABI 2 and 3. Check that the services your
+plugin needs are available too.
+See [SDK and ABI Versioning](#sdk-and-abi-versioning).
 
 ## Requirements
 
 * Windows x64
 * CMake 3.28+
 * MSVC or clang-cl
-* D2RLoader with plugin API v4 support
+* D2RLoader with plugin ABI 4 support and the services your plugin requires
 
 ## Start a Plugin
 
@@ -89,6 +94,30 @@ you need to maintain. You may also ship a loose copy, but the DLL copy is used
 when that file is missing. The embedded file must contain something and must be
 no larger than 1 MiB.
 
+Shared plugins can declare which config values affect multiplayer gameplay in
+the embedded default file:
+
+```toml
+[my-plugin]
+enabled = true
+monster_scale = 1.25
+theme = "dark"
+
+[d2rl]
+match = ["my-plugin.enabled", "my-plugin.monster_scale"]
+```
+
+D2RLoader compares the effective values at those exact paths. TOML formatting,
+comments, key order, and unlisted values do not matter. The embedded list is
+authoritative; an edited user config cannot change which values are compared.
+List only settings that affect shared gameplay. Do not list secrets or
+client-only display settings.
+
+Each path must exist in the embedded defaults and use the same casing. A plugin
+can list up to 64 unique paths. Plugins that parse the whole config file with a
+strict schema must allow the reserved `d2rl` table. Plugins without
+`d2rl.match` keep their existing binary-only compatibility check.
+
 At minimum, a DLL plugin must:
 
 * embed the D2RLoader plugin manifest resource
@@ -96,6 +125,12 @@ At minimum, a DLL plugin must:
 * export `D2RLoaderLoadPlugin`
 
 Export `D2RLoaderUnloadPlugin` when the plugin has cleanup to do.
+
+`PluginInfo::version` should contain a Semantic Versioning 2.0.0 value no longer
+than 63 characters. Examples include `1.2.0`, `1.5.8-altfix.1`, and
+`1.2.0+rotw`. D2RLoader extracts the first valid version for public
+compatibility details. If none is found, it uses `invalid` without preventing
+the plugin from loading.
 
 ## Build the Examples
 
@@ -139,7 +174,7 @@ Put a mod-scoped plugin in:
 Mod plugins load first. If a mod plugin and global plugin use the same id, the
 mod copy replaces the global copy while that mod is active.
 
-Every API v3 or newer plugin must set exactly one role in `PluginInfo::flags`:
+Every plugin using plugin ABI 3 or newer must set exactly one role in `PluginInfo::flags`:
 
 - `PluginFlags::Client` is for UI, input, and other local behavior.
 - `PluginFlags::Server` is for gameplay rules and character saves.
@@ -147,43 +182,160 @@ Every API v3 or newer plugin must set exactly one role in `PluginInfo::flags`:
 
 The host performs both roles. D2RLoader records server and shared plugins in the
 character's plugin history. It does not record client-only plugins. In TCP/IP,
-shared plugins must match between the host and client by id, version, API,
+shared plugins must match between the host and client by id, version, plugin ABI,
 scope, and compatibility flags. You may combine a role with `ModScopedOnly` and
 `NativeHooks`.
 
-## API Versioning
+## Boss and Herald modifiers
 
-`D2RL_PLUGIN_API_VERSION` is the binary API version used to build the plugin.
+Use `ModifierPolicy` from `encounters.h` to choose the extra modifiers, auras,
+and tier damage bonus for Herald replacements or naturally spawned bosses.
+The host applies these settings.
 
-D2RLoader checks it before loading the DLL and skips unsupported versions.
+Put the policy in your decision's `modifiers` field and set the matching flag:
 
-API v3 requires a role. Older v2 plugins did not have roles, so D2RLoader treats
-them as `PluginFlags::Shared`. They still load, but must match in TCP/IP and are
-recorded in the character's plugin history.
+- `HeraldDecisionOverrideModifiers` replaces the usual random Herald modifiers
+  and tier damage bonus for a Herald replacement.
+- `BossDecisionApplyHeraldModifiers` applies the policy and Herald tier bonuses
+  to a naturally spawned boss and its clones. This also works with zero clones.
 
-API v4 adds explicit duplicate-Unique item creation, atomic existing-item
-operations, semantic item interactions, initial location and new gameplay
-events, Hardcore/Softcore character-creation metadata, and asynchronous HTTPS
-requests.
+### Choosing modifiers and auras
+
+The two mask fields store allowed choices as bits: each bit is an on/off switch.
+`allowedModifierMask` uses the game's monster modifier IDs (MonUMod IDs).
+`allowedAuraMask` uses positions in `AuraSkillIds`, starting at zero, not skill IDs.
+Only bits listed in `SupportedModifierMask` and `SupportedAuraMask` are accepted.
+
+For example, this policy requests one Aura Enchanted modifier with Might:
+
+```cpp
+D2RL::Encounters::ModifierPolicy policy{};
+policy.allowedModifierMask = 1U << 30; // Modifier ID 30: Aura Enchanted.
+policy.minModifiers = 1;
+policy.maxModifiers = 1;
+policy.allowedAuraMask = 1U << 0; // Position 0 in AuraSkillIds: Might (skill 98).
+policy.minAuras = 1;
+policy.maxAuras = 1;
+```
+
+`1U << n` turns on bit `n`. Combine choices with `|` to allow more than one.
+The example leaves `maxAuraLevel` and `damageBoostPercent` at zero.
+
+### Counts and limits
+
+- `minModifiers` and `maxModifiers` accept 0–9 added modifiers. `minAuras` and
+  `maxAuras` accept 0–2 auras from Aura Enchanted. Each minimum must be no greater
+  than its maximum.
+- The game can add fewer than requested. Some modifiers cannot apply to every
+  monster, existing modifiers use up space, and the allowed list may be too small.
+- Allowing Aura Enchanted does not guarantee it will be chosen. Aura counts apply
+  only when it is chosen. Setting `maxAuras` to zero prevents it from being chosen.
+- `maxAuraLevel = 0` uses the game's normal aura-level formula, up to level 99.
+  Values from 1–99 set the highest level an added aura can reach.
+- `damageBoostPercent` accepts 0–10000. For example, `50` adds a 50% damage bonus.
+  Zero disables only this bonus. Auras and other modifiers can still raise damage.
+
+Existing modifiers and the boss's own skills, such as Duriel's Holy Freeze, stay
+in place. The aura count limits only auras added by this policy.
+
+The loader copies the policy before using it. These settings stay active for
+that monster in the current game, even when its area unloads and loads again.
+Ordinary Heralds are unchanged. Naturally spawned bosses keep their boss status,
+boss loot, and experience.
+
+## SDK and ABI Versioning
+
+These versions describe different parts of a plugin build:
+
+| Version | Source | Used for |
+|---|---|---|
+| SDK release version, currently `0.2.0` | `D2RL_SDK_VERSION` in `include/D2RLPlugin/version.h` | Identifies the SDK headers and build tools used to build a plugin. |
+| Plugin ABI version, currently `4` | `D2RL_PLUGIN_ABI_VERSION` in the same header | Identifies the data layout and function calls shared by a plugin DLL and the loader. |
+| Minimum supported plugin ABI, currently `2` | `D2RL_PLUGIN_MIN_ABI_VERSION` in the same header | The oldest plugin ABI the loader accepts. |
+| Service ABI version, such as `EncounterService::AbiVersion = 1` | Each service header | Identifies the data layout and function calls for one service, requested through `QueryService`. |
+| Plugin release version, such as `1.2.0` | That plugin's `PluginInfo::version` | Plugin release identity, logs, and multiplayer matching. |
+
+`D2RL_SDK_VERSION` is a string that plugin code can use to log which SDK it was
+built with. CMake uses the same value for the project and installed package
+version. It is not added to DLL metadata or the game's UI automatically.
+
+The plugin manifest and `PluginInfo::abiVersion` declare the plugin ABI.
+`PluginContext::abiVersion` carries the plugin ABI accepted by the loader.
+D2RLoader rejects unsupported plugin ABI versions before loading a DLL.
+
+Several SDK releases can use the same plugin ABI while offering different
+services. Query each service your plugin needs and check its `serviceSize`
+before reading newer fields. Check that a function pointer is set before
+calling it. If a required service or field is missing, report the requirement
+and fail to load cleanly. An optional feature can stay disabled.
+
+For an installed SDK package, `find_package(D2RLPlugin 0.2.0 REQUIRED)` accepts
+that release or a later one with the same major number. All `0.x` releases
+share major zero. Use `find_package(D2RLPlugin 0.2.0 EXACT REQUIRED)` to require
+that specific release. These build-time checks do not check which services
+the running loader provides.
+
+Plugin ABI 3 introduced roles. D2RLoader treats ABI 2 plugins as
+`PluginFlags::Shared`. They must match in TCP/IP and are recorded in the
+character's plugin history.
+
+### SDK 0.2.0 source-name changes
+
+Update these names when rebuilding a plugin with SDK 0.2.0:
+
+| Previous name | Current name |
+|---|---|
+| `D2RL_PLUGIN_API_VERSION` | `D2RL_PLUGIN_ABI_VERSION` |
+| `D2RL_PLUGIN_MIN_API_VERSION` | `D2RL_PLUGIN_MIN_ABI_VERSION` |
+| `D2RL_PLUGIN_ROLES_API_VERSION` | `D2RL_PLUGIN_ROLES_ABI_VERSION` |
+| `D2RL_PLUGIN_HTTP_API_VERSION` | `D2RL_PLUGIN_HTTP_ABI_VERSION` |
+| `PluginInfo::apiVersion` and `PluginContext::apiVersion` | `PluginInfo::abiVersion` and `PluginContext::abiVersion` |
+| `PluginInfoApiVersionSize` | `PluginInfoAbiVersionSize` |
+| `NormalizePluginFlagsForApiVersion` | `NormalizePluginFlagsForAbiVersion` |
+| Service types such as `InventoryServiceV1` | `InventoryService` |
+| Service version constants such as `InventoryServiceV1Version` | `InventoryService::AbiVersion` |
+| Size constants such as `InventoryServiceV1RequiredSize` | `InventoryServiceRequiredSize` |
+| Field helpers such as `HasInventoryServiceV1Field` | `HasInventoryServiceField` |
+
+All service types, size constants, and field helpers follow the same naming
+change. Service queries now take only the typed output pointer:
+`ctx->QueryService(&inventory)`. The free function is
+`D2RL::QueryService(ctx, &inventory)`.
+
+Update your C++ files and the `.rc` file that holds the plugin's manifest.
+The old names have been removed, so these edits are needed before rebuilding.
+Existing compiled DLLs still use the same data layout, manifest bytes, and
+entry-point names. The plugin ABI stays at **4**.
+Existing service ABI numbers stay at **1**.
 
 ## Services
 
 Services are the normal way to use D2RLoader features. Query only the services
 you need. Check a service table's size before using newer fields.
 
-Some game and UI work must happen at the right time. `ThreadServiceV1` can queue
+Some game and UI work must happen at the right time. `ThreadService` can queue
 a callback, which is a function D2RLoader runs for you. See
 [Running Work at the Right Time](#running-work-at-the-right-time).
 
 Query a service through the plugin context:
 
 ```cpp
-const D2RL::InventoryServiceV1* inventory = nullptr;
-if (ctx->QueryService(D2RL::ServiceId::Inventory, D2RL::InventoryServiceV1Version, &inventory) == D2RL::ServiceQueryResult::Success
-	&& D2RL::HasInventoryServiceV1Field(inventory, D2RL::InventoryServiceV1RequiredSize)) {
+const D2RL::InventoryService* inventory = nullptr;
+if (ctx->QueryService(&inventory) == D2RL::ServiceQueryResult::Success
+	&& D2RL::HasInventoryServiceField(inventory, D2RL::InventoryServiceRequiredSize)) {
 	// Use inventory here. D2RLoader still owns it.
 }
 ```
+
+The pointer type selects the service. Each service type defines its `Id` and
+`AbiVersion`, so the query passes those values automatically. For example,
+`InventoryService::AbiVersion` identifies the Inventory interface in these
+headers. Each service has its own independent ABI number.
+
+The query returns `UnsupportedVersion` if the loader knows the service but
+does not support the requested ABI. A successful query still needs the field
+checks shown above. The raw overload accepts an explicit ID, ABI number, and
+`const void**` output for code that needs to request a service without a C++ type.
 
 D2RLoader owns service tables. Do not change or free them. Pass your
 `PluginContext` to calls that need an owner. You can still query services while
@@ -192,7 +344,7 @@ state after unloading begins.
 
 ### Lifecycle
 
-`LifecycleServiceV1` sends one `DataTablesLoadedEvent` after every completed
+`LifecycleService` sends one `DataTablesLoadedEvent` after every completed
 table load, including later reloads. Register listeners while the plugin loads.
 D2RLoader runs them during a game update, in registration order, after stock
 tables, plugin tables, and its own processing are ready. Keep callbacks short.
@@ -215,7 +367,7 @@ handles from the old game invalid.
 
 ### Resources and Companion MPQs
 
-Use `ResourceServiceV1` to give D2RCore a file from memory. Pass the full virtual
+Use `ResourceService` to give D2RCore a file from memory. Pass the full virtual
 path and the file bytes. D2RCore copies both, so the plugin may release its input
 buffers as soon as the call returns.
 
@@ -278,7 +430,7 @@ file an active mod can replace.
 
 ### Custom Tables
 
-Use `CustomTableServiceV1` for plugin-owned Excel tables. The plugin does not
+Use `CustomTableService` for plugin-owned Excel tables. The plugin does not
 need Fog or game pointers. Give the service a short table name, one or both
 banks, the row size, and the column list. V1 supports `Ascii`, `Byte`, `Word`,
 and `Dword`.
@@ -315,13 +467,13 @@ and required `structSize` fields.
 
 ### Inventory and Custom Player Pages
 
-Use `InventoryServiceV1` to find existing items or own one custom player page.
+Use `InventoryService` to find existing items or own one custom player page.
 
 Existing items use safe handles owned by the plugin. Get the local player from a
 UI callback, then inspect the cursor, equipment, belt, inventory, cube, trade,
 personal stash, custom page, or shared stash. Cursor and equipment lookups return
 handles. Inventory searches give the callback a copied `Items::ItemInfo` for
-each match. `ItemServiceV1::getItemInfo` can refresh one handle later. Normal
+each match. `ItemService::getItemInfo` can refresh one handle later. Normal
 item calls never expose a native pointer. Each call checks the plugin, game
 session, runtime unit id, and item seed again.
 
@@ -352,8 +504,8 @@ character while testing a new page provider.
 
 ### Item Creation and Transactions
 
-Use `ItemServiceV1` to work with items without a native hook. Queue changes with
-`ThreadServiceV1::runOnGameThread`. Only a local game or TCP/IP host may change
+Use `ItemService` to work with items without a native hook. Queue changes with
+`ThreadService::runOnGameThread`. Only a local game or TCP/IP host may change
 game items. A TCP/IP client sends a plugin message to the host. The host uses
 `getPeerPlayer` to find that client, then changes items through the returned
 player handle.
@@ -446,7 +598,7 @@ do not need `NativeHooks`.
 
 ### Panels, Layouts, and Widgets
 
-Use `PanelServiceV1` to register a named panel and open or close it. The name is
+Use `PanelService` to register a named panel and open or close it. The name is
 local to the plugin. It must use 1 through 64 ASCII letters, digits, hyphens, or
 underscores, with no slash. D2RCore copies the name and returns a safe handle.
 The plugin never receives a raw widget pointer. The owner can inspect, open,
@@ -521,7 +673,7 @@ Custom child widgets follow the same pattern, such as
 
 ### Local and TCP/IP Messages
 
-Use `NetworkServiceV1` for small private plugin messages in local and TCP/IP
+Use `NetworkService` for small private plugin messages in local and TCP/IP
 games. Register a non-zero local channel id while the plugin loads. D2RLoader
 combines it with the plugin id and scope, so another plugin may use the same
 number. The client and host connect only when their 64-bit
@@ -544,11 +696,11 @@ before the call returns. A payload may contain at most 224 bytes.
 The service is not available on Battle.net. It limits traffic from each
 plugin/peer pair and drops invalid packets without ending the game. Do not store
 callback data pointers or treat channel and peer handles as game pointers. Check
-`NetworkServiceV1RequiredSize` before using the full V1 table.
+`NetworkServiceRequiredSize` before using the full V1 table.
 
 ### Input Actions
 
-`InputServiceV1` registers named actions, not raw keyboard hooks. They appear in
+`InputService` registers named actions, not raw keyboard hooks. They appear in
 D2R's Controls menu and keep saved bindings while the plugin is missing. The
 Controls menu clears conflicts with D2R actions and other plugin actions. Plugin
 actions do not run while chat, another text field, or the binding control is
@@ -558,7 +710,7 @@ Register actions while the plugin loads; D2RLoader removes them when it unloads.
 
 ### Shared UI Events
 
-`SharedEventServiceV1` provides common tooltip and panel-message events. A
+`SharedEventService` provides common tooltip and panel-message events. A
 tooltip listener fills a small UTF-8 buffer with the text it wants to add. It
 does not edit D2R's full tooltip string. Choose `Description`, `Attributes`, or
 `ActionFooter`, then place the text at the top or bottom. Attribute text may also
@@ -582,7 +734,7 @@ themselves. D2RLoader removes them when the plugin unloads.
 
 ### Item Interactions
 
-`ItemInteractionServiceV1` reports a logical item activation before D2R handles
+`ItemInteractionService` reports a logical item activation before D2R handles
 it. The event contains generation-safe item and player handles, the actual item
 container, the selected cell, keyboard modifiers, and whether the active input
 source is keyboard/mouse or controller. V1 emits `Activate` from proven normal
@@ -598,25 +750,25 @@ when that plugin unloads. See `item-interactions` for a complete listener.
 
 ### Patch Diagnostics
 
-`DiagnosticsServiceV1` compares expected bytes with the running game. A changed
+`DiagnosticsService` compares expected bytes with the running game. A changed
 range is `Tracked` when it overlaps a plugin patch or hook known to D2RLoader.
 Otherwise it is `Untracked`. The result includes the change type, owner count,
 and plugin id when there is one known owner.
 
 ### Game Rules
 
-`GameRuleServiceV1` returns the rules used by the current game: maximum sockets,
+`GameRuleService` returns the rules used by the current game: maximum sockets,
 maximum stack size, skill cap, and whether a player can spend a skill point. The
 skill check does not spend the point. Read item and skill limits from a UI or
 queued game callback. `canAllocateSkill` needs a game callback.
 
 ### HTTPS Requests
 
-`HttpServiceV1` sends GET, POST, PUT, PATCH, DELETE, and HEAD requests to
+`HttpService` sends GET, POST, PUT, PATCH, DELETE, and HEAD requests to
 `https://` URLs. `send` copies the URL, headers, and body before returning, then
 runs the request on a worker thread. The response callback also runs on that
 worker thread, never the UI or game thread. Queue UI or game work through
-`ThreadServiceV1` when a response needs to affect D2R.
+`ThreadService` when a response needs to affect D2R.
 
 Normal certificate and host-name checks stay enabled. Redirects may remain on
 HTTPS but cannot downgrade to HTTP. A transport success may still have an HTTP
@@ -628,8 +780,8 @@ D2RLoader also cancels every outstanding request when the plugin unloads.
 ### Running Work at the Right Time
 
 D2R needs some work to happen during a UI update or game update. You do not need
-to create or manage threads. Use `ThreadServiceV1::runOnUiThread` or
-`ThreadServiceV1::runOnGameThread` to queue a callback, and D2RLoader runs it at
+to create or manage threads. Use `ThreadService::runOnUiThread` or
+`ThreadService::runOnGameThread` to queue a callback, and D2RLoader runs it at
 the right time.
 
 Queuing returns right away, and each callback runs once. D2RLoader drops waiting
@@ -639,14 +791,14 @@ callback. A remote TCP/IP client must ask the host to make those changes.
 
 ### Existing Widgets
 
-`WidgetServiceV1` finds existing panels and child widgets by name. Its handles
+`WidgetService` finds existing panels and child widgets by name. Its handles
 store plugin-owned paths, not game pointers, so they still work after a panel is
 reopened. From a UI callback, a plugin may read a local rectangle, change
 visibility or enabled state, and send a normal target/command/text action.
 
 ### Localization
 
-`LocalizationServiceV1` copies active UTF-8 text by numeric id or string key.
+`LocalizationService` copies active UTF-8 text by numeric id or string key.
 Call once with a null or small output buffer to get `BufferTooSmall` and the
 required byte count, then call again with that size. The count includes the
 trailing null byte.
@@ -660,13 +812,30 @@ need live D2R objects or another feature the services do not provide.
 D2RCore uses ordinals 1-99 for its named public API. There is no ordinal 0.
 `D2RLPlugin/core_exports.h` defines the names, ordinals, binary layouts, and
 function types. `IsInGame` is ordinal 13. `ExecuteConsoleCommand` is ordinal 14.
+`PrepareHostEnvironment` is ordinal 15.
 
 `ExecuteConsoleCommand` accepts a null-terminated command up to
 `MaxConsoleCommandLength`. It briefly enables D2R's cheat flag, sends the
 command, waits for dispatch, and restores the old flag before returning. A
 `true` result means D2RCore accepted the command, not that the command succeeded.
 Normal host, operator, and active-mod rules still apply. Call it from the UI, or
-queue it with `ThreadServiceV1::runOnUiThread`.
+queue it with `ThreadService::runOnUiThread`.
+
+`PrepareHostEnvironment` is for dedicated-server plugins that create a game
+without D2RLoader's normal hosting screen. After loading every game resource and
+Excel table, call it once and then start accepting players. D2RLoader captures
+the full local fingerprint, plugin inventory, all gameplay banks, item-stat
+schemas, and handshake data as one immutable server-wide manifest. Repeated
+calls keep the original frozen manifest.
+
+The dedicated server may host simultaneous Classic, Lord of Destruction, and
+Reign of the Warlock games. D2RLoader performs a version-neutral transport
+preflight first, then reads the target game's version from D2R when admitting
+the player and compares only that game's gameplay bank and item-stat schema.
+
+The error buffer is optional. When supplied, it receives an empty string on
+success or a null-terminated explanation on failure, truncated to fit. A
+dedicated server must not accept players when preparation returns `false`.
 
 Keep using `PluginContext` to register commands and write to the console. It
 tracks ownership and cleans up when the plugin unloads. If you call a public
@@ -676,7 +845,7 @@ header only defines the function.
 Ordinal 100 begins D2RCore's private loader API and is not part of the Plugin
 SDK. Supported low-level game functions use the separate 2000-2999 range.
 
-`DataTableServiceV1` gives read-only access to the active compiled Excel tables.
+`DataTableService` gives read-only access to the active compiled Excel tables.
 It does not expose the loader's main `DataTables` object. Query
 `ServiceId::DataTable`, choose `Classic`, `Lod`, or `Rotw`, then request a table
 by its stable `TableId`.

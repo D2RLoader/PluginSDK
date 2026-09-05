@@ -2,7 +2,7 @@
 
 static constexpr D2RL::PluginInfo InputActionPluginInfo {
 	.infoSize    = D2RL::PluginInfoSize,
-	.apiVersion  = D2RL_PLUGIN_API_VERSION,
+	.abiVersion  = D2RL_PLUGIN_ABI_VERSION,
 	.id          = "input-action-sample",
 	.name        = "Input Action Sample Plugin",
 	.version     = "0.1.0",
@@ -24,16 +24,16 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderGetPluginInfo() noexcept -> const D2RL::PluginI
 }
 
 D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) noexcept -> bool {
-	const D2RL::InputServiceV1* input = nullptr;
+	const D2RL::InputService* input = nullptr;
 	if (context == nullptr) {
 		return false;
 	}
 
-	if (context->QueryService(D2RL::ServiceId::Input, D2RL::InputServiceV1Version, &input) != D2RL::ServiceQueryResult::Success) {
+	if (context->QueryService(&input) != D2RL::ServiceQueryResult::Success) {
 		return false;
 	}
 
-	if (!D2RL::HasInputServiceV1Field(input, D2RL::InputServiceV1RequiredSize)) {
+	if (!D2RL::HasInputServiceField(input, D2RL::InputServiceRequiredSize)) {
 		return false;
 	}
 

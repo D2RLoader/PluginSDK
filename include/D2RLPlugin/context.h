@@ -121,11 +121,11 @@ inline auto ApiQueryService(const PluginApi* api) noexcept -> QueryServiceFn {
 	return HasPluginApiField(api, PluginApiQueryServiceSize) ? api->queryService : nullptr;
 }
 
-// D2RLoader passes this to the plugin during load. apiVersion has already been
+// D2RLoader passes this to the plugin during load. abiVersion has already been
 // accepted; use contextSize to check which fields are present.
 struct PluginContext {
 	uint32_t         contextSize;
-	uint32_t         apiVersion;
+	uint32_t         abiVersion;
 	const PluginApi* api;
 	LoadScope        loadScope;
 	uint32_t         reserved0;
@@ -165,9 +165,11 @@ struct PluginContext {
 		return query != nullptr ? query(this, serviceId, serviceVersion, service) : ServiceQueryResult::Unavailable;
 	}
 
+	// The pointer type selects the service ID and ABI version. Check the result
+	// and the service's available fields before calling its functions.
 	template <typename Service>
 	[[nodiscard]]
-	auto QueryService(ServiceId serviceId, uint32_t serviceVersion, const Service** service) const noexcept -> ServiceQueryResult {
+	auto QueryService(const Service** service) const noexcept -> ServiceQueryResult {
 		static_assert(!std::is_void_v<Service>);
 		if (service == nullptr) {
 			return ServiceQueryResult::InvalidArgument;
@@ -175,7 +177,7 @@ struct PluginContext {
 
 		*service                        = nullptr;
 		const void*              raw    = nullptr;
-		const ServiceQueryResult result = QueryService(serviceId, serviceVersion, &raw);
+		const ServiceQueryResult result = QueryService(Service::Id, Service::AbiVersion, &raw);
 		if (result == ServiceQueryResult::Success) {
 			*service = static_cast<const Service*>(raw);
 		}
@@ -370,7 +372,7 @@ inline auto QueryService(const PluginContext* ctx, ServiceId serviceId, uint32_t
 }
 
 template <typename Service>
-inline auto QueryService(const PluginContext* ctx, ServiceId serviceId, uint32_t serviceVersion, const Service** service) noexcept -> ServiceQueryResult {
+inline auto QueryService(const PluginContext* ctx, const Service** service) noexcept -> ServiceQueryResult {
 	static_assert(!std::is_void_v<Service>);
 	if (ctx == nullptr) {
 		if (service != nullptr) {
@@ -379,7 +381,7 @@ inline auto QueryService(const PluginContext* ctx, ServiceId serviceId, uint32_t
 		return ServiceQueryResult::InvalidArgument;
 	}
 
-	return ctx->QueryService(serviceId, serviceVersion, service);
+	return ctx->QueryService(service);
 }
 
 inline auto PatchBytes(const PluginContext* ctx, uint64_t rva, const void* expected, uint32_t expectedSize, const void* bytes, uint32_t size) noexcept -> bool {

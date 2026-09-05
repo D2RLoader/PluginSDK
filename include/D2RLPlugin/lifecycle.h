@@ -53,8 +53,8 @@ constexpr auto PluginRoleValue(PluginFlags flags) noexcept -> uint32_t {
 	return FlagsValue(flags) & PluginRoleMask;
 }
 
-constexpr auto NormalizePluginFlagsForApiVersion(uint32_t apiVersion, PluginFlags flags) noexcept -> PluginFlags {
-	if (apiVersion >= D2RL_PLUGIN_ROLES_API_VERSION) {
+constexpr auto NormalizePluginFlagsForAbiVersion(uint32_t abiVersion, PluginFlags flags) noexcept -> PluginFlags {
+	if (abiVersion >= D2RL_PLUGIN_ROLES_ABI_VERSION) {
 		return flags;
 	}
 
@@ -71,18 +71,18 @@ constexpr auto HasOnlyKnownPluginFlags(PluginFlags flags) noexcept -> bool {
 	return (FlagsValue(flags) & ~PluginKnownMask) == 0;
 }
 
-static_assert(PluginRoleValue(NormalizePluginFlagsForApiVersion(2, PluginFlags::None)) == FlagsValue(PluginFlags::Shared));
-static_assert(PluginRoleValue(NormalizePluginFlagsForApiVersion(3, PluginFlags::None)) == FlagsValue(PluginFlags::None));
-static_assert(HasFlag(NormalizePluginFlagsForApiVersion(2, PluginFlags::NativeHooks), PluginFlags::NativeHooks));
+static_assert(PluginRoleValue(NormalizePluginFlagsForAbiVersion(2, PluginFlags::None)) == FlagsValue(PluginFlags::Shared));
+static_assert(PluginRoleValue(NormalizePluginFlagsForAbiVersion(3, PluginFlags::None)) == FlagsValue(PluginFlags::None));
+static_assert(HasFlag(NormalizePluginFlagsForAbiVersion(2, PluginFlags::NativeHooks), PluginFlags::NativeHooks));
 static_assert(HasFlag(PluginFlags::Shared, PluginFlags::Shared));
 static_assert(!HasFlag(PluginFlags::Client, PluginFlags::Shared));
 
 struct PluginInfo {
 	uint32_t    infoSize;
-	uint32_t    apiVersion;
+	uint32_t    abiVersion;
 	const char* id;
 	const char* name;
-	const char* version;
+	const char* version; // SemVer 2.0.0 recommended!; malformed versions load as "invalid"
 	const char* author;
 	const char* description;
 	PluginFlags flags;
@@ -91,7 +91,7 @@ struct PluginInfo {
 
 inline constexpr uint32_t PluginInfoSize            = static_cast<uint32_t>(sizeof(PluginInfo));
 inline constexpr uint32_t PluginInfoRequiredSize    = static_cast<uint32_t>(offsetof(PluginInfo, reserved));
-inline constexpr uint32_t PluginInfoApiVersionSize  = static_cast<uint32_t>(offsetof(PluginInfo, apiVersion) + sizeof(uint32_t));
+inline constexpr uint32_t PluginInfoAbiVersionSize  = static_cast<uint32_t>(offsetof(PluginInfo, abiVersion) + sizeof(uint32_t));
 inline constexpr uint32_t PluginInfoDescriptionSize = static_cast<uint32_t>(offsetof(PluginInfo, description) + sizeof(const char*));
 inline constexpr uint32_t PluginInfoFlagsSize       = static_cast<uint32_t>(offsetof(PluginInfo, flags) + sizeof(PluginFlags));
 

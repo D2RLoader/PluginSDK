@@ -3,7 +3,7 @@
 
 static constexpr D2RL::PluginInfo GameRulesPluginInfo {
 	.infoSize    = D2RL::PluginInfoSize,
-	.apiVersion  = D2RL_PLUGIN_API_VERSION,
+	.abiVersion  = D2RL_PLUGIN_ABI_VERSION,
 	.id          = "game-rules-sample",
 	.name        = "Game Rules Sample Plugin",
 	.version     = "0.1.0",
@@ -12,9 +12,9 @@ static constexpr D2RL::PluginInfo GameRulesPluginInfo {
 	.flags       = D2RL::PluginFlags::Shared,
 };
 
-static const D2RL::GameRuleServiceV1*  gameRules;
-static const D2RL::InventoryServiceV1* inventory;
-static const D2RL::ThreadServiceV1*    threads;
+static const D2RL::GameRuleService*  gameRules;
+static const D2RL::InventoryService* inventory;
+static const D2RL::ThreadService*    threads;
 
 struct FirstItem {
 	D2RL::ItemHandle handle = D2RL::InvalidItemHandle;
@@ -86,27 +86,27 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) 
 		return false;
 	}
 
-	if (context->QueryService(D2RL::ServiceId::GameRule, D2RL::GameRuleServiceV1Version, &gameRules) != D2RL::ServiceQueryResult::Success) {
+	if (context->QueryService(&gameRules) != D2RL::ServiceQueryResult::Success) {
 		return false;
 	}
 
-	if (!D2RL::HasGameRuleServiceV1Field(gameRules, D2RL::GameRuleServiceV1RequiredSize)) {
+	if (!D2RL::HasGameRuleServiceField(gameRules, D2RL::GameRuleServiceRequiredSize)) {
 		return false;
 	}
 
-	if (context->QueryService(D2RL::ServiceId::Inventory, D2RL::InventoryServiceV1Version, &inventory) != D2RL::ServiceQueryResult::Success) {
+	if (context->QueryService(&inventory) != D2RL::ServiceQueryResult::Success) {
 		return false;
 	}
 
-	if (!D2RL::HasInventoryServiceV1Field(inventory, D2RL::InventoryServiceV1RequiredSize)) {
+	if (!D2RL::HasInventoryServiceField(inventory, D2RL::InventoryServiceRequiredSize)) {
 		return false;
 	}
 
-	if (context->QueryService(D2RL::ServiceId::Thread, D2RL::ThreadServiceV1Version, &threads) != D2RL::ServiceQueryResult::Success) {
+	if (context->QueryService(&threads) != D2RL::ServiceQueryResult::Success) {
 		return false;
 	}
 
-	if (!D2RL::HasThreadServiceV1Field(threads, D2RL::ThreadServiceV1RequiredSize)) {
+	if (!D2RL::HasThreadServiceField(threads, D2RL::ThreadServiceRequiredSize)) {
 		return false;
 	}
 	return context->RegisterConsoleCommand("game-rules-sample", GameRulesCommand, "Report final item and skill rules.");

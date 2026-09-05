@@ -18,7 +18,7 @@ install_native_hook_example = false
 log_level = "info"
 
 # Integer value.
-expected_api_version = 2
+expected_abi_version = 2
 
 # Float value.
 example_scale = 1.0

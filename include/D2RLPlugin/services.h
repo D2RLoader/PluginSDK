@@ -26,6 +26,7 @@ enum class ServiceId : uint32_t {
 	Item            = 15,
 	Http            = 16,
 	ItemInteraction = 17,
+	Encounter       = 18,
 };
 
 enum class ServiceQueryResult : uint32_t {

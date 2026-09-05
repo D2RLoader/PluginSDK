@@ -139,21 +139,21 @@ constexpr auto HasFlag(ControllerRouteFlags flags, ControllerRouteFlags flag) no
 // had to open player inventory, closing the plugin panel closes it again;
 // inventory that was already open remains open.
 struct PanelRegistration {
-		uint32_t    structSize;
-		PanelFlags  flags;
-		const char* localId;
+	uint32_t    structSize;
+	PanelFlags  flags;
+	const char* localId;
 };
 
 // Set structSize to PanelInfoSize before calling getPanelInfo. The panel and
 // its handle remain owned by D2RCore.
 struct PanelInfo {
-		uint32_t           structSize;
-		PanelFlags         flags;
-		RegistrationHandle handle;
-		uint64_t           ownerGeneration;
-		RegistrationState  registrationState;
-		PresentationState  presentationState;
-		uint32_t           reserved;
+	uint32_t           structSize;
+	PanelFlags         flags;
+	RegistrationHandle handle;
+	uint64_t           ownerGeneration;
+	RegistrationState  registrationState;
+	PresentationState  presentationState;
+	uint32_t           reserved;
 };
 
 // Bind an InventoryGridWidget child to a registered player page. Both handles
@@ -161,11 +161,11 @@ struct PanelInfo {
 // and applies the binding whenever the panel opens. D2RCore still owns the
 // panel, page, and native widget. flags is zero in v1.
 struct PlayerPageGridBinding {
-		uint32_t                          structSize;
-		uint32_t                          flags;
-		RegistrationHandle                panel;
-		Inventory::PageRegistrationHandle page;
-		const char*                       childName;
+	uint32_t                          structSize;
+	uint32_t                          flags;
+	RegistrationHandle                panel;
+	Inventory::PageRegistrationHandle page;
+	const char*                       childName;
 };
 
 // Register during plugin load. localId uses the same plugin-local naming rules
@@ -175,11 +175,11 @@ struct PlayerPageGridBinding {
 // from controller layouts; ControllerOnly excludes it from keyboard/mouse
 // layouts. The two flags cannot be combined. reserved must be zero in v1.
 struct ChildLayoutRegistration {
-		uint32_t         structSize;
-		ChildLayoutFlags flags;
-		StockPanel       stockPanel;
-		uint32_t         reserved;
-		const char*      localId;
+	uint32_t         structSize;
+	ChildLayoutFlags flags;
+	StockPanel       stockPanel;
+	uint32_t         reserved;
+	const char*      localId;
 };
 
 // Add a registered panel to the controller UI switcher during plugin load.
@@ -192,12 +192,12 @@ struct ChildLayoutRegistration {
 // must be zero, and localizedLabelKey must be a non-empty D2R string key that
 // begins with '@'. Only one controller route can be registered globally.
 struct ControllerRouteRegistration {
-		uint32_t                 structSize;
-		ControllerRouteFlags     flags;
-		RegistrationHandle       panel;
-		ControllerRoutePlacement placement;
-		uint32_t                 reserved;
-		const char*              localizedLabelKey;
+	uint32_t                 structSize;
+	ControllerRouteFlags     flags;
+	RegistrationHandle       panel;
+	ControllerRoutePlacement placement;
+	uint32_t                 reserved;
+	const char*              localizedLabelKey;
 };
 
 inline constexpr uint32_t PanelRegistrationSize                   = static_cast<uint32_t>(sizeof(PanelRegistration));
@@ -323,68 +323,70 @@ static_assert(sizeof(ControllerRouteRegistration) == 32);
 
 }
 
-struct PanelServiceV1 {
-		uint32_t                            serviceSize;
-		uint32_t                            serviceVersion;
-		Panels::RegisterPanelFn             registerPanel;
-		Panels::UnregisterPanelFn           unregisterPanel;
-		Panels::GetPanelInfoFn              getPanelInfo;
-		Panels::OpenPanelFn                 openPanel;
-		Panels::ClosePanelFn                closePanel;
-		Panels::TogglePanelFn               togglePanel;
-		Panels::BindPlayerPageGridFn        bindPlayerPageGrid;
-		Panels::RegisterChildLayoutFn       registerChildLayout;
-		Panels::UnregisterChildLayoutFn     unregisterChildLayout;
-		Panels::RegisterControllerRouteFn   registerControllerRoute;
-		Panels::UnregisterControllerRouteFn unregisterControllerRoute;
+struct PanelService {
+	static constexpr ServiceId Id         = ServiceId::Panel;
+	static constexpr uint32_t  AbiVersion = 1;
+
+	uint32_t                            serviceSize;
+	uint32_t                            serviceVersion;
+	Panels::RegisterPanelFn             registerPanel;
+	Panels::UnregisterPanelFn           unregisterPanel;
+	Panels::GetPanelInfoFn              getPanelInfo;
+	Panels::OpenPanelFn                 openPanel;
+	Panels::ClosePanelFn                closePanel;
+	Panels::TogglePanelFn               togglePanel;
+	Panels::BindPlayerPageGridFn        bindPlayerPageGrid;
+	Panels::RegisterChildLayoutFn       registerChildLayout;
+	Panels::UnregisterChildLayoutFn     unregisterChildLayout;
+	Panels::RegisterControllerRouteFn   registerControllerRoute;
+	Panels::UnregisterControllerRouteFn unregisterControllerRoute;
 };
 
-inline constexpr uint32_t PanelServiceV1Version                           = 1;
-inline constexpr uint32_t PanelServiceV1Size                              = static_cast<uint32_t>(sizeof(PanelServiceV1));
-inline constexpr uint32_t PanelServiceV1RegisterPanelFieldEnd             = static_cast<uint32_t>(offsetof(PanelServiceV1, registerPanel) + sizeof(Panels::RegisterPanelFn));
-inline constexpr uint32_t PanelServiceV1UnregisterPanelFieldEnd           = static_cast<uint32_t>(offsetof(PanelServiceV1, unregisterPanel) + sizeof(Panels::UnregisterPanelFn));
-inline constexpr uint32_t PanelServiceV1GetPanelInfoFieldEnd              = static_cast<uint32_t>(offsetof(PanelServiceV1, getPanelInfo) + sizeof(Panels::GetPanelInfoFn));
-inline constexpr uint32_t PanelServiceV1OpenPanelFieldEnd                 = static_cast<uint32_t>(offsetof(PanelServiceV1, openPanel) + sizeof(Panels::OpenPanelFn));
-inline constexpr uint32_t PanelServiceV1ClosePanelFieldEnd                = static_cast<uint32_t>(offsetof(PanelServiceV1, closePanel) + sizeof(Panels::ClosePanelFn));
-inline constexpr uint32_t PanelServiceV1TogglePanelFieldEnd               = static_cast<uint32_t>(offsetof(PanelServiceV1, togglePanel) + sizeof(Panels::TogglePanelFn));
-inline constexpr uint32_t PanelServiceV1BindPlayerPageGridFieldEnd        = static_cast<uint32_t>(offsetof(PanelServiceV1, bindPlayerPageGrid) + sizeof(Panels::BindPlayerPageGridFn));
-inline constexpr uint32_t PanelServiceV1RegisterChildLayoutFieldEnd       = static_cast<uint32_t>(offsetof(PanelServiceV1, registerChildLayout) + sizeof(Panels::RegisterChildLayoutFn));
-inline constexpr uint32_t PanelServiceV1UnregisterChildLayoutFieldEnd     = static_cast<uint32_t>(offsetof(PanelServiceV1, unregisterChildLayout) + sizeof(Panels::UnregisterChildLayoutFn));
-inline constexpr uint32_t PanelServiceV1RegisterControllerRouteFieldEnd   = static_cast<uint32_t>(offsetof(PanelServiceV1, registerControllerRoute) + sizeof(Panels::RegisterControllerRouteFn));
-inline constexpr uint32_t PanelServiceV1UnregisterControllerRouteFieldEnd = static_cast<uint32_t>(offsetof(PanelServiceV1, unregisterControllerRoute) + sizeof(Panels::UnregisterControllerRouteFn));
-inline constexpr uint32_t PanelServiceV1RequiredSize                      = PanelServiceV1Size;
+inline constexpr uint32_t PanelServiceSize                              = static_cast<uint32_t>(sizeof(PanelService));
+inline constexpr uint32_t PanelServiceRegisterPanelFieldEnd             = static_cast<uint32_t>(offsetof(PanelService, registerPanel) + sizeof(Panels::RegisterPanelFn));
+inline constexpr uint32_t PanelServiceUnregisterPanelFieldEnd           = static_cast<uint32_t>(offsetof(PanelService, unregisterPanel) + sizeof(Panels::UnregisterPanelFn));
+inline constexpr uint32_t PanelServiceGetPanelInfoFieldEnd              = static_cast<uint32_t>(offsetof(PanelService, getPanelInfo) + sizeof(Panels::GetPanelInfoFn));
+inline constexpr uint32_t PanelServiceOpenPanelFieldEnd                 = static_cast<uint32_t>(offsetof(PanelService, openPanel) + sizeof(Panels::OpenPanelFn));
+inline constexpr uint32_t PanelServiceClosePanelFieldEnd                = static_cast<uint32_t>(offsetof(PanelService, closePanel) + sizeof(Panels::ClosePanelFn));
+inline constexpr uint32_t PanelServiceTogglePanelFieldEnd               = static_cast<uint32_t>(offsetof(PanelService, togglePanel) + sizeof(Panels::TogglePanelFn));
+inline constexpr uint32_t PanelServiceBindPlayerPageGridFieldEnd        = static_cast<uint32_t>(offsetof(PanelService, bindPlayerPageGrid) + sizeof(Panels::BindPlayerPageGridFn));
+inline constexpr uint32_t PanelServiceRegisterChildLayoutFieldEnd       = static_cast<uint32_t>(offsetof(PanelService, registerChildLayout) + sizeof(Panels::RegisterChildLayoutFn));
+inline constexpr uint32_t PanelServiceUnregisterChildLayoutFieldEnd     = static_cast<uint32_t>(offsetof(PanelService, unregisterChildLayout) + sizeof(Panels::UnregisterChildLayoutFn));
+inline constexpr uint32_t PanelServiceRegisterControllerRouteFieldEnd   = static_cast<uint32_t>(offsetof(PanelService, registerControllerRoute) + sizeof(Panels::RegisterControllerRouteFn));
+inline constexpr uint32_t PanelServiceUnregisterControllerRouteFieldEnd = static_cast<uint32_t>(offsetof(PanelService, unregisterControllerRoute) + sizeof(Panels::UnregisterControllerRouteFn));
+inline constexpr uint32_t PanelServiceRequiredSize                      = PanelServiceSize;
 
-inline auto HasPanelServiceV1Field(const PanelServiceV1* service, uint32_t fieldEndOffset) noexcept -> bool {
-	return service != nullptr && service->serviceVersion == PanelServiceV1Version && service->serviceSize >= fieldEndOffset;
+inline auto HasPanelServiceField(const PanelService* service, uint32_t fieldEndOffset) noexcept -> bool {
+	return service != nullptr && service->serviceVersion == PanelService::AbiVersion && service->serviceSize >= fieldEndOffset;
 }
 
-static_assert(std::is_standard_layout_v<PanelServiceV1>);
-static_assert(std::is_trivially_copyable_v<PanelServiceV1>);
-static_assert(offsetof(PanelServiceV1, serviceSize) == 0);
-static_assert(offsetof(PanelServiceV1, serviceVersion) == 4);
-static_assert(offsetof(PanelServiceV1, registerPanel) == 8);
-static_assert(offsetof(PanelServiceV1, unregisterPanel) == 16);
-static_assert(offsetof(PanelServiceV1, getPanelInfo) == 24);
-static_assert(offsetof(PanelServiceV1, openPanel) == 32);
-static_assert(offsetof(PanelServiceV1, closePanel) == 40);
-static_assert(offsetof(PanelServiceV1, togglePanel) == 48);
-static_assert(offsetof(PanelServiceV1, bindPlayerPageGrid) == 56);
-static_assert(offsetof(PanelServiceV1, registerChildLayout) == 64);
-static_assert(offsetof(PanelServiceV1, unregisterChildLayout) == 72);
-static_assert(offsetof(PanelServiceV1, registerControllerRoute) == 80);
-static_assert(offsetof(PanelServiceV1, unregisterControllerRoute) == 88);
-static_assert(PanelServiceV1RegisterPanelFieldEnd == 16);
-static_assert(PanelServiceV1UnregisterPanelFieldEnd == 24);
-static_assert(PanelServiceV1GetPanelInfoFieldEnd == 32);
-static_assert(PanelServiceV1OpenPanelFieldEnd == 40);
-static_assert(PanelServiceV1ClosePanelFieldEnd == 48);
-static_assert(PanelServiceV1TogglePanelFieldEnd == 56);
-static_assert(PanelServiceV1BindPlayerPageGridFieldEnd == 64);
-static_assert(PanelServiceV1RegisterChildLayoutFieldEnd == 72);
-static_assert(PanelServiceV1UnregisterChildLayoutFieldEnd == 80);
-static_assert(PanelServiceV1RegisterControllerRouteFieldEnd == 88);
-static_assert(PanelServiceV1UnregisterControllerRouteFieldEnd == 96);
-static_assert(PanelServiceV1RequiredSize == 96);
-static_assert(sizeof(PanelServiceV1) == 96);
+static_assert(std::is_standard_layout_v<PanelService>);
+static_assert(std::is_trivially_copyable_v<PanelService>);
+static_assert(offsetof(PanelService, serviceSize) == 0);
+static_assert(offsetof(PanelService, serviceVersion) == 4);
+static_assert(offsetof(PanelService, registerPanel) == 8);
+static_assert(offsetof(PanelService, unregisterPanel) == 16);
+static_assert(offsetof(PanelService, getPanelInfo) == 24);
+static_assert(offsetof(PanelService, openPanel) == 32);
+static_assert(offsetof(PanelService, closePanel) == 40);
+static_assert(offsetof(PanelService, togglePanel) == 48);
+static_assert(offsetof(PanelService, bindPlayerPageGrid) == 56);
+static_assert(offsetof(PanelService, registerChildLayout) == 64);
+static_assert(offsetof(PanelService, unregisterChildLayout) == 72);
+static_assert(offsetof(PanelService, registerControllerRoute) == 80);
+static_assert(offsetof(PanelService, unregisterControllerRoute) == 88);
+static_assert(PanelServiceRegisterPanelFieldEnd == 16);
+static_assert(PanelServiceUnregisterPanelFieldEnd == 24);
+static_assert(PanelServiceGetPanelInfoFieldEnd == 32);
+static_assert(PanelServiceOpenPanelFieldEnd == 40);
+static_assert(PanelServiceClosePanelFieldEnd == 48);
+static_assert(PanelServiceTogglePanelFieldEnd == 56);
+static_assert(PanelServiceBindPlayerPageGridFieldEnd == 64);
+static_assert(PanelServiceRegisterChildLayoutFieldEnd == 72);
+static_assert(PanelServiceUnregisterChildLayoutFieldEnd == 80);
+static_assert(PanelServiceRegisterControllerRouteFieldEnd == 88);
+static_assert(PanelServiceUnregisterControllerRouteFieldEnd == 96);
+static_assert(PanelServiceRequiredSize == 96);
+static_assert(sizeof(PanelService) == 96);
 
 }

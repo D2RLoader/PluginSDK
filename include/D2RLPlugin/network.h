@@ -187,7 +187,10 @@ static_assert(sizeof(ChannelInfo) == 56);
 
 }
 
-struct NetworkServiceV1 {
+struct NetworkService {
+	static constexpr ServiceId Id         = ServiceId::Network;
+	static constexpr uint32_t  AbiVersion = 1;
+
 	uint32_t                     serviceSize;
 	uint32_t                     serviceVersion;
 	Network::RegisterChannelFn   registerChannel;
@@ -199,38 +202,37 @@ struct NetworkServiceV1 {
 	Network::GetPeerPlayerFn     getPeerPlayer;
 };
 
-inline constexpr uint32_t NetworkServiceV1Version                   = 1;
-inline constexpr uint32_t NetworkServiceV1Size                      = static_cast<uint32_t>(sizeof(NetworkServiceV1));
-inline constexpr uint32_t NetworkServiceV1RequiredSize              = static_cast<uint32_t>(offsetof(NetworkServiceV1, getPeerPlayer) + sizeof(Network::GetPeerPlayerFn));
-inline constexpr uint32_t NetworkServiceV1RegisterChannelFieldEnd   = static_cast<uint32_t>(offsetof(NetworkServiceV1, registerChannel) + sizeof(Network::RegisterChannelFn));
-inline constexpr uint32_t NetworkServiceV1UnregisterChannelFieldEnd = static_cast<uint32_t>(offsetof(NetworkServiceV1, unregisterChannel) + sizeof(Network::UnregisterChannelFn));
-inline constexpr uint32_t NetworkServiceV1GetChannelInfoFieldEnd    = static_cast<uint32_t>(offsetof(NetworkServiceV1, getChannelInfo) + sizeof(Network::GetChannelInfoFn));
-inline constexpr uint32_t NetworkServiceV1ConnectToHostFieldEnd     = static_cast<uint32_t>(offsetof(NetworkServiceV1, connectToHost) + sizeof(Network::ConnectToHostFn));
-inline constexpr uint32_t NetworkServiceV1SendToHostFieldEnd        = static_cast<uint32_t>(offsetof(NetworkServiceV1, sendToHost) + sizeof(Network::SendToHostFn));
-inline constexpr uint32_t NetworkServiceV1SendToClientFieldEnd      = static_cast<uint32_t>(offsetof(NetworkServiceV1, sendToClient) + sizeof(Network::SendToClientFn));
-inline constexpr uint32_t NetworkServiceV1GetPeerPlayerFieldEnd     = static_cast<uint32_t>(offsetof(NetworkServiceV1, getPeerPlayer) + sizeof(Network::GetPeerPlayerFn));
+inline constexpr uint32_t NetworkServiceSize                      = static_cast<uint32_t>(sizeof(NetworkService));
+inline constexpr uint32_t NetworkServiceRequiredSize              = static_cast<uint32_t>(offsetof(NetworkService, getPeerPlayer) + sizeof(Network::GetPeerPlayerFn));
+inline constexpr uint32_t NetworkServiceRegisterChannelFieldEnd   = static_cast<uint32_t>(offsetof(NetworkService, registerChannel) + sizeof(Network::RegisterChannelFn));
+inline constexpr uint32_t NetworkServiceUnregisterChannelFieldEnd = static_cast<uint32_t>(offsetof(NetworkService, unregisterChannel) + sizeof(Network::UnregisterChannelFn));
+inline constexpr uint32_t NetworkServiceGetChannelInfoFieldEnd    = static_cast<uint32_t>(offsetof(NetworkService, getChannelInfo) + sizeof(Network::GetChannelInfoFn));
+inline constexpr uint32_t NetworkServiceConnectToHostFieldEnd     = static_cast<uint32_t>(offsetof(NetworkService, connectToHost) + sizeof(Network::ConnectToHostFn));
+inline constexpr uint32_t NetworkServiceSendToHostFieldEnd        = static_cast<uint32_t>(offsetof(NetworkService, sendToHost) + sizeof(Network::SendToHostFn));
+inline constexpr uint32_t NetworkServiceSendToClientFieldEnd      = static_cast<uint32_t>(offsetof(NetworkService, sendToClient) + sizeof(Network::SendToClientFn));
+inline constexpr uint32_t NetworkServiceGetPeerPlayerFieldEnd     = static_cast<uint32_t>(offsetof(NetworkService, getPeerPlayer) + sizeof(Network::GetPeerPlayerFn));
 
-inline auto HasNetworkServiceV1Field(const NetworkServiceV1* service, uint32_t fieldEndOffset) noexcept -> bool {
-	return service != nullptr && service->serviceVersion == NetworkServiceV1Version && service->serviceSize >= fieldEndOffset;
+inline auto HasNetworkServiceField(const NetworkService* service, uint32_t fieldEndOffset) noexcept -> bool {
+	return service != nullptr && service->serviceVersion == NetworkService::AbiVersion && service->serviceSize >= fieldEndOffset;
 }
 
-static_assert(std::is_standard_layout_v<NetworkServiceV1>);
-static_assert(std::is_trivially_copyable_v<NetworkServiceV1>);
-static_assert(offsetof(NetworkServiceV1, registerChannel) == 8);
-static_assert(offsetof(NetworkServiceV1, unregisterChannel) == 16);
-static_assert(offsetof(NetworkServiceV1, getChannelInfo) == 24);
-static_assert(offsetof(NetworkServiceV1, connectToHost) == 32);
-static_assert(offsetof(NetworkServiceV1, sendToHost) == 40);
-static_assert(offsetof(NetworkServiceV1, sendToClient) == 48);
-static_assert(offsetof(NetworkServiceV1, getPeerPlayer) == 56);
-static_assert(NetworkServiceV1RegisterChannelFieldEnd == 16);
-static_assert(NetworkServiceV1UnregisterChannelFieldEnd == 24);
-static_assert(NetworkServiceV1GetChannelInfoFieldEnd == 32);
-static_assert(NetworkServiceV1ConnectToHostFieldEnd == 40);
-static_assert(NetworkServiceV1SendToHostFieldEnd == 48);
-static_assert(NetworkServiceV1SendToClientFieldEnd == 56);
-static_assert(NetworkServiceV1GetPeerPlayerFieldEnd == 64);
-static_assert(NetworkServiceV1RequiredSize == 64);
-static_assert(sizeof(NetworkServiceV1) == 64);
+static_assert(std::is_standard_layout_v<NetworkService>);
+static_assert(std::is_trivially_copyable_v<NetworkService>);
+static_assert(offsetof(NetworkService, registerChannel) == 8);
+static_assert(offsetof(NetworkService, unregisterChannel) == 16);
+static_assert(offsetof(NetworkService, getChannelInfo) == 24);
+static_assert(offsetof(NetworkService, connectToHost) == 32);
+static_assert(offsetof(NetworkService, sendToHost) == 40);
+static_assert(offsetof(NetworkService, sendToClient) == 48);
+static_assert(offsetof(NetworkService, getPeerPlayer) == 56);
+static_assert(NetworkServiceRegisterChannelFieldEnd == 16);
+static_assert(NetworkServiceUnregisterChannelFieldEnd == 24);
+static_assert(NetworkServiceGetChannelInfoFieldEnd == 32);
+static_assert(NetworkServiceConnectToHostFieldEnd == 40);
+static_assert(NetworkServiceSendToHostFieldEnd == 48);
+static_assert(NetworkServiceSendToClientFieldEnd == 56);
+static_assert(NetworkServiceGetPeerPlayerFieldEnd == 64);
+static_assert(NetworkServiceRequiredSize == 64);
+static_assert(sizeof(NetworkService) == 64);
 
 }

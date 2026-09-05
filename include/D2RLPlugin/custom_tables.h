@@ -193,7 +193,10 @@ static_assert(sizeof(TableInfo) == 64);
 
 }
 
-struct CustomTableServiceV1 {
+struct CustomTableService {
+	static constexpr ServiceId Id         = ServiceId::CustomTable;
+	static constexpr uint32_t  AbiVersion = 1;
+
 	uint32_t                        serviceSize;
 	uint32_t                        serviceVersion;
 	CustomTables::RegisterTableFn   registerTable;
@@ -202,23 +205,22 @@ struct CustomTableServiceV1 {
 	CustomTables::CopyRowsFn        copyRows;
 };
 
-inline constexpr uint32_t CustomTableServiceV1Version      = 1;
-inline constexpr uint32_t CustomTableServiceV1Size         = static_cast<uint32_t>(sizeof(CustomTableServiceV1));
-inline constexpr uint32_t CustomTableServiceV1RequiredSize = static_cast<uint32_t>(offsetof(CustomTableServiceV1, copyRows) + sizeof(CustomTables::CopyRowsFn));
+inline constexpr uint32_t CustomTableServiceSize         = static_cast<uint32_t>(sizeof(CustomTableService));
+inline constexpr uint32_t CustomTableServiceRequiredSize = static_cast<uint32_t>(offsetof(CustomTableService, copyRows) + sizeof(CustomTables::CopyRowsFn));
 
-inline auto HasCustomTableServiceV1Field(const CustomTableServiceV1* service, uint32_t fieldEndOffset) noexcept -> bool {
-	return service != nullptr && service->serviceVersion == CustomTableServiceV1Version && service->serviceSize >= fieldEndOffset;
+inline auto HasCustomTableServiceField(const CustomTableService* service, uint32_t fieldEndOffset) noexcept -> bool {
+	return service != nullptr && service->serviceVersion == CustomTableService::AbiVersion && service->serviceSize >= fieldEndOffset;
 }
 
-static_assert(std::is_standard_layout_v<CustomTableServiceV1>);
-static_assert(std::is_trivially_copyable_v<CustomTableServiceV1>);
-static_assert(offsetof(CustomTableServiceV1, serviceSize) == 0);
-static_assert(offsetof(CustomTableServiceV1, serviceVersion) == 4);
-static_assert(offsetof(CustomTableServiceV1, registerTable) == 8);
-static_assert(offsetof(CustomTableServiceV1, unregisterTable) == 16);
-static_assert(offsetof(CustomTableServiceV1, getTableInfo) == 24);
-static_assert(offsetof(CustomTableServiceV1, copyRows) == 32);
-static_assert(CustomTableServiceV1RequiredSize == 40);
-static_assert(sizeof(CustomTableServiceV1) == 40);
+static_assert(std::is_standard_layout_v<CustomTableService>);
+static_assert(std::is_trivially_copyable_v<CustomTableService>);
+static_assert(offsetof(CustomTableService, serviceSize) == 0);
+static_assert(offsetof(CustomTableService, serviceVersion) == 4);
+static_assert(offsetof(CustomTableService, registerTable) == 8);
+static_assert(offsetof(CustomTableService, unregisterTable) == 16);
+static_assert(offsetof(CustomTableService, getTableInfo) == 24);
+static_assert(offsetof(CustomTableService, copyRows) == 32);
+static_assert(CustomTableServiceRequiredSize == 40);
+static_assert(sizeof(CustomTableService) == 40);
 
 }

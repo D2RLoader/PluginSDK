@@ -146,20 +146,21 @@ struct PackMpqRequest {
 	TextBuffer     error;
 };
 
-using VersionFn               = const char*(__cdecl*)() noexcept;
-using HasActiveModFn          = bool(__cdecl*)() noexcept;
-using IsDebugModeEnabledFn    = bool(__cdecl*)() noexcept;
-using RegisterCommandFn       = bool(__fastcall*)(const CommandRegistration* command) noexcept;
-using RegisterCVarFn          = bool(__fastcall*)(const CVarRegistration* cvar) noexcept;
-using WriteConsoleMessageFn   = void(__fastcall*)(const char* text, MessageKind messageKind) noexcept;
-using GetModBuildVersionFn    = uint32_t(__cdecl*)() noexcept;
-using ModIntegrationFn        = bool(__fastcall*)(const wchar_t* modName, char* errorBuffer, size_t errorBufferSize) noexcept;
-using InitModIntegrationFn    = ModIntegrationFn;
-using UpdateModIntegrationFn  = ModIntegrationFn;
-using CompileModBinsFn        = bool(__fastcall*)(const wchar_t* modName, BinCompileResult* result, char* errorBuffer, size_t errorBufferSize) noexcept;
-using PackModMpqFn            = bool(__fastcall*)(const PackMpqRequest* request, PackMpqResult* result) noexcept;
-using IsInGameFn              = bool(__cdecl*)() noexcept;
-using ExecuteConsoleCommandFn = bool(__fastcall*)(const char* command) noexcept;
+using VersionFn                = const char*(__cdecl*)() noexcept;
+using HasActiveModFn           = bool(__cdecl*)() noexcept;
+using IsDebugModeEnabledFn     = bool(__cdecl*)() noexcept;
+using RegisterCommandFn        = bool(__fastcall*)(const CommandRegistration* command) noexcept;
+using RegisterCVarFn           = bool(__fastcall*)(const CVarRegistration* cvar) noexcept;
+using WriteConsoleMessageFn    = void(__fastcall*)(const char* text, MessageKind messageKind) noexcept;
+using GetModBuildVersionFn     = uint32_t(__cdecl*)() noexcept;
+using ModIntegrationFn         = bool(__fastcall*)(const wchar_t* modName, char* errorBuffer, size_t errorBufferSize) noexcept;
+using InitModIntegrationFn     = ModIntegrationFn;
+using UpdateModIntegrationFn   = ModIntegrationFn;
+using CompileModBinsFn         = bool(__fastcall*)(const wchar_t* modName, BinCompileResult* result, char* errorBuffer, size_t errorBufferSize) noexcept;
+using PackModMpqFn             = bool(__fastcall*)(const PackMpqRequest* request, PackMpqResult* result) noexcept;
+using IsInGameFn               = bool(__cdecl*)() noexcept;
+using ExecuteConsoleCommandFn  = bool(__fastcall*)(const char* command) noexcept;
+using PrepareHostEnvironmentFn = bool(__fastcall*)(char* errorBuffer, size_t errorBufferSize) noexcept;
 
 inline constexpr ExportInfo VersionInfo { "Version", 1 };
 inline constexpr ExportInfo HasActiveModInfo { "HasActiveMod", 2 };
@@ -174,6 +175,7 @@ inline constexpr ExportInfo CompileModBinsInfo { "CompileModBins", 11 };
 inline constexpr ExportInfo PackModMpqInfo { "PackModMpq", 12 };
 inline constexpr ExportInfo IsInGameInfo { "IsInGame", 13 };
 inline constexpr ExportInfo ExecuteConsoleCommandInfo { "ExecuteConsoleCommand", 14 };
+inline constexpr ExportInfo PrepareHostEnvironmentInfo { "PrepareHostEnvironment", 15 };
 
 static_assert(sizeof(CommandContext) == 48);
 static_assert(sizeof(CommandRegistration) == 72);

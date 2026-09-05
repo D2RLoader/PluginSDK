@@ -152,7 +152,10 @@ static_assert(sizeof(GameplayEventListener) == 32);
 
 }
 
-struct LifecycleServiceV1 {
+struct LifecycleService {
+	static constexpr ServiceId Id         = ServiceId::Lifecycle;
+	static constexpr uint32_t  AbiVersion = 1;
+
 	uint32_t                                        serviceSize;
 	uint32_t                                        serviceVersion;
 	Lifecycle::RegisterDataTablesLoadedListenerFn   registerDataTablesLoadedListener;
@@ -161,23 +164,22 @@ struct LifecycleServiceV1 {
 	Lifecycle::UnregisterGameplayEventListenerFn    unregisterGameplayEventListener;
 };
 
-inline constexpr uint32_t LifecycleServiceV1Version      = 1;
-inline constexpr uint32_t LifecycleServiceV1Size         = static_cast<uint32_t>(sizeof(LifecycleServiceV1));
-inline constexpr uint32_t LifecycleServiceV1RequiredSize = LifecycleServiceV1Size;
+inline constexpr uint32_t LifecycleServiceSize         = static_cast<uint32_t>(sizeof(LifecycleService));
+inline constexpr uint32_t LifecycleServiceRequiredSize = LifecycleServiceSize;
 
-inline auto HasLifecycleServiceV1Field(const LifecycleServiceV1* service, uint32_t fieldEndOffset) noexcept -> bool {
-	return service != nullptr && service->serviceVersion == LifecycleServiceV1Version && service->serviceSize >= fieldEndOffset;
+inline auto HasLifecycleServiceField(const LifecycleService* service, uint32_t fieldEndOffset) noexcept -> bool {
+	return service != nullptr && service->serviceVersion == LifecycleService::AbiVersion && service->serviceSize >= fieldEndOffset;
 }
 
-static_assert(std::is_standard_layout_v<LifecycleServiceV1>);
-static_assert(std::is_trivially_copyable_v<LifecycleServiceV1>);
-static_assert(offsetof(LifecycleServiceV1, serviceSize) == 0);
-static_assert(offsetof(LifecycleServiceV1, serviceVersion) == 4);
-static_assert(offsetof(LifecycleServiceV1, registerDataTablesLoadedListener) == 8);
-static_assert(offsetof(LifecycleServiceV1, unregisterDataTablesLoadedListener) == 16);
-static_assert(offsetof(LifecycleServiceV1, registerGameplayEventListener) == 24);
-static_assert(offsetof(LifecycleServiceV1, unregisterGameplayEventListener) == 32);
-static_assert(LifecycleServiceV1RequiredSize == 40);
-static_assert(sizeof(LifecycleServiceV1) == 40);
+static_assert(std::is_standard_layout_v<LifecycleService>);
+static_assert(std::is_trivially_copyable_v<LifecycleService>);
+static_assert(offsetof(LifecycleService, serviceSize) == 0);
+static_assert(offsetof(LifecycleService, serviceVersion) == 4);
+static_assert(offsetof(LifecycleService, registerDataTablesLoadedListener) == 8);
+static_assert(offsetof(LifecycleService, unregisterDataTablesLoadedListener) == 16);
+static_assert(offsetof(LifecycleService, registerGameplayEventListener) == 24);
+static_assert(offsetof(LifecycleService, unregisterGameplayEventListener) == 32);
+static_assert(LifecycleServiceRequiredSize == 40);
+static_assert(sizeof(LifecycleService) == 40);
 
 }

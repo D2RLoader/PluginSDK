@@ -220,7 +220,10 @@ using GetBindingFn = Result(__cdecl*)(const PluginContext* context, ActionHandle
 
 } // namespace Input
 
-struct InputServiceV1 {
+struct InputService {
+	static constexpr ServiceId Id         = ServiceId::Input;
+	static constexpr uint32_t  AbiVersion = 1;
+
 	uint32_t                  serviceSize;
 	uint32_t                  serviceVersion;
 	Input::RegisterActionFn   registerAction;
@@ -228,12 +231,11 @@ struct InputServiceV1 {
 	Input::GetBindingFn       getBinding;
 };
 
-inline constexpr uint32_t InputServiceV1Version      = 1;
-inline constexpr uint32_t InputServiceV1Size         = static_cast<uint32_t>(sizeof(InputServiceV1));
-inline constexpr uint32_t InputServiceV1RequiredSize = static_cast<uint32_t>(offsetof(InputServiceV1, getBinding) + sizeof(Input::GetBindingFn));
+inline constexpr uint32_t InputServiceSize         = static_cast<uint32_t>(sizeof(InputService));
+inline constexpr uint32_t InputServiceRequiredSize = static_cast<uint32_t>(offsetof(InputService, getBinding) + sizeof(Input::GetBindingFn));
 
-inline auto HasInputServiceV1Field(const InputServiceV1* service, uint32_t fieldEndOffset) noexcept -> bool {
-	return service != nullptr && service->serviceVersion == InputServiceV1Version && service->serviceSize >= fieldEndOffset;
+inline auto HasInputServiceField(const InputService* service, uint32_t fieldEndOffset) noexcept -> bool {
+	return service != nullptr && service->serviceVersion == InputService::AbiVersion && service->serviceSize >= fieldEndOffset;
 }
 
 static_assert(sizeof(Input::Key) == sizeof(uint32_t));
@@ -264,14 +266,14 @@ static_assert(offsetof(Input::ActionRegistration, defaultSecondary) == 40);
 static_assert(offsetof(Input::ActionRegistration, callback) == 48);
 static_assert(offsetof(Input::ActionRegistration, userData) == 56);
 static_assert(sizeof(Input::ActionRegistration) == 64);
-static_assert(std::is_standard_layout_v<InputServiceV1>);
-static_assert(std::is_trivially_copyable_v<InputServiceV1>);
-static_assert(offsetof(InputServiceV1, serviceSize) == 0);
-static_assert(offsetof(InputServiceV1, serviceVersion) == 4);
-static_assert(offsetof(InputServiceV1, registerAction) == 8);
-static_assert(offsetof(InputServiceV1, unregisterAction) == 16);
-static_assert(offsetof(InputServiceV1, getBinding) == 24);
-static_assert(InputServiceV1RequiredSize == 32);
-static_assert(sizeof(InputServiceV1) == 32);
+static_assert(std::is_standard_layout_v<InputService>);
+static_assert(std::is_trivially_copyable_v<InputService>);
+static_assert(offsetof(InputService, serviceSize) == 0);
+static_assert(offsetof(InputService, serviceVersion) == 4);
+static_assert(offsetof(InputService, registerAction) == 8);
+static_assert(offsetof(InputService, unregisterAction) == 16);
+static_assert(offsetof(InputService, getBinding) == 24);
+static_assert(InputServiceRequiredSize == 32);
+static_assert(sizeof(InputService) == 32);
 
 } // namespace D2RL

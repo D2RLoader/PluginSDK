@@ -6,3 +6,8 @@
 [config-file-sample]
 enabled = true
 message = "Hello from config-file-sample.toml"
+
+# Shared plugins can list the settings that must match between players.
+# Use exact paths from this embedded default file. Do not list client-only settings.
+[d2rl]
+match = ["config-file-sample.enabled"]

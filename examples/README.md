@@ -159,6 +159,7 @@ D2RLoader creates the user's config if it is missing. The example also shows:
 
 * `ReadConfig`
 * `WriteConfig`
+* `d2rl.match` for Shared-plugin settings that must match between players
 
 Build it with:
 
@@ -220,22 +221,22 @@ feature needs both.
 | Diagnostics | `patching` |
 | Game Rule | `game-rules` |
 | Widget | `widget-localization`, `shared-events` |
-| Work queue (`ThreadServiceV1`) | `item-transaction`, `network-ping`, `game-rules` |
+| Work queue (`ThreadService`) | `item-transaction`, `network-ping`, `game-rules` |
 | Localization | `widget-localization` |
 | Item | `item-transaction` |
 | Item Interaction | `item-interactions` |
 
 ## Plugin manifest
 
-Every v2 or newer DLL plugin needs `D2RL_PLUGIN_MANIFEST_RESOURCE_ID`. It is an
-`RCDATA` DWORD containing `D2RL_PLUGIN_API_VERSION`. Each DLL example has a
+Every plugin ABI 2 or newer DLL needs `D2RL_PLUGIN_MANIFEST_RESOURCE_ID`. It is an
+`RCDATA` DWORD containing `D2RL_PLUGIN_ABI_VERSION`. Each DLL example has a
 matching `.rc` file:
 
 ```cpp
-D2RL_PLUGIN_MANIFEST_RESOURCE_ID RCDATA { D2RL_PLUGIN_RESOURCE_DWORD(D2RL_PLUGIN_API_VERSION) }
+D2RL_PLUGIN_MANIFEST_RESOURCE_ID RCDATA { D2RL_PLUGIN_RESOURCE_DWORD(D2RL_PLUGIN_ABI_VERSION) }
 ```
 
-A missing manifest or old v1 manifest is not compatible.
+A missing manifest or old plugin ABI 1 manifest is not compatible.
 
 ## Contract tests
 

@@ -74,7 +74,7 @@ static auto __fastcall HookGetVisibleLineCount() noexcept -> std::uint32_t {
 
 static constexpr D2RL::PluginInfo PatchingSampleInfo {
 	.infoSize    = D2RL::PluginInfoSize,
-	.apiVersion  = D2RL_PLUGIN_API_VERSION,
+	.abiVersion  = D2RL_PLUGIN_ABI_VERSION,
 	.id          = "patching-sample",
 	.name        = "Patching Sample Plugin",
 	.version     = "0.1.0",
@@ -201,12 +201,12 @@ static auto InstallHookExample(const D2RL::PluginContext* context) noexcept -> b
 }
 
 static auto ReportPatchDiagnostic(const D2RL::PluginContext* context) noexcept -> bool {
-	const D2RL::DiagnosticsServiceV1* diagnostics = nullptr;
-	if (context->QueryService(D2RL::ServiceId::Diagnostics, D2RL::DiagnosticsServiceV1Version, &diagnostics) != D2RL::ServiceQueryResult::Success) {
+	const D2RL::DiagnosticsService* diagnostics = nullptr;
+	if (context->QueryService(&diagnostics) != D2RL::ServiceQueryResult::Success) {
 		return false;
 	}
 
-	if (!D2RL::HasDiagnosticsServiceV1Field(diagnostics, D2RL::DiagnosticsServiceV1RequiredSize)) {
+	if (!D2RL::HasDiagnosticsServiceField(diagnostics, D2RL::DiagnosticsServiceRequiredSize)) {
 		return false;
 	}
 	const D2RL::Diagnostics::HookQuery query {

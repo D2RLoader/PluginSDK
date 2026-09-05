@@ -3,7 +3,7 @@
 
 static constexpr D2RL::PluginInfo NetworkPingPluginInfo {
 	.infoSize    = D2RL::PluginInfoSize,
-	.apiVersion  = D2RL_PLUGIN_API_VERSION,
+	.abiVersion  = D2RL_PLUGIN_ABI_VERSION,
 	.id          = "network-ping-sample",
 	.name        = "Network Ping Sample Plugin",
 	.version     = "0.1.0",
@@ -15,8 +15,8 @@ static constexpr D2RL::PluginInfo NetworkPingPluginInfo {
 static constexpr uint16_t PingMessage = 1;
 static constexpr uint16_t PongMessage = 2;
 
-static const D2RL::NetworkServiceV1* network;
-static const D2RL::ThreadServiceV1*  threads;
+static const D2RL::NetworkService*   network;
+static const D2RL::ThreadService*    threads;
 static D2RL::Network::ChannelHandle  channel = D2RL::Network::InvalidChannelHandle;
 
 static void __cdecl ResolvePeerAndReply(const D2RL::PluginContext* context, void* userData) noexcept {
@@ -74,19 +74,19 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) 
 		return false;
 	}
 
-	if (context->QueryService(D2RL::ServiceId::Network, D2RL::NetworkServiceV1Version, &network) != D2RL::ServiceQueryResult::Success) {
+	if (context->QueryService(&network) != D2RL::ServiceQueryResult::Success) {
 		return false;
 	}
 
-	if (!D2RL::HasNetworkServiceV1Field(network, D2RL::NetworkServiceV1RequiredSize)) {
+	if (!D2RL::HasNetworkServiceField(network, D2RL::NetworkServiceRequiredSize)) {
 		return false;
 	}
 
-	if (context->QueryService(D2RL::ServiceId::Thread, D2RL::ThreadServiceV1Version, &threads) != D2RL::ServiceQueryResult::Success) {
+	if (context->QueryService(&threads) != D2RL::ServiceQueryResult::Success) {
 		return false;
 	}
 
-	if (!D2RL::HasThreadServiceV1Field(threads, D2RL::ThreadServiceV1RequiredSize)) {
+	if (!D2RL::HasThreadServiceField(threads, D2RL::ThreadServiceRequiredSize)) {
 		return false;
 	}
 	const D2RL::Network::ChannelRegistration registration {
