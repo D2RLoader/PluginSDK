@@ -52,7 +52,7 @@ static constexpr char PanelLayout[] = R"json({
 						"pressedFrame": 1,
 						"disabledFrame": 2,
 						"hoveredFrame": 3,
-						"textString": "@strCancel",
+						"textString": "@d2r:strCancel",
 						"pointSize": "$MediumFontSize",
 						"onClickMessage": "PanelManager:ClosePanel:widget-localization-sample/SamplePanel",
 						"textColor": "$FontColorWhite"
@@ -78,7 +78,7 @@ static auto WidgetLocalizationCommand(D2R::Game::Client*, const D2RL::ConsoleCom
 	}
 
 	uint32_t required = 0;
-	if (localization->getStringByKey(command->plugin, "strCancel", nullptr, 0, &required) != D2RL::Localization::Result::BufferTooSmall) {
+	if (localization->getStringByKey(command->plugin, "d2r:strCancel", nullptr, 0, &required) != D2RL::Localization::Result::BufferTooSmall) {
 		return D2RL::ConsoleCommandResult::Failed;
 	}
 	std::array<char, 128> text {};
@@ -86,7 +86,7 @@ static auto WidgetLocalizationCommand(D2R::Game::Client*, const D2RL::ConsoleCom
 		return D2RL::ConsoleCommandResult::Failed;
 	}
 
-	if (localization->getStringByKey(command->plugin, "strCancel", text.data(), static_cast<uint32_t>(text.size()), &required) != D2RL::Localization::Result::Success) {
+	if (localization->getStringByKey(command->plugin, "d2r:strCancel", text.data(), static_cast<uint32_t>(text.size()), &required) != D2RL::Localization::Result::Success) {
 		return D2RL::ConsoleCommandResult::Failed;
 	}
 

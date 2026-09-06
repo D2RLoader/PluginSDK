@@ -407,11 +407,18 @@ A plugin may replace individual game strings through its own file:
 data/local/lng/strings/d2rloader/<plugin-id>/strings.json
 ```
 
-The JSON array needs only the strings the plugin replaces. It does not need a
-copy of Blizzard's full file. Each record still uses D2R's normal numeric id,
-key, and locale fields. D2RCore keeps the plugin value when the stock file later
-contains the same string. An active mod can replace the plugin file by using the
-same virtual path in its MPQ or MPQ folder.
+Each plugin owns a string namespace: `plugin.<plugin-id>`. A local `Key` defines
+new text in that namespace. To replace existing text, use its full key, such as
+`d2r:strCancel` or `d2rloader:D2RLoaderSettingsGeneral`. Supply only the languages
+you want to change. Custom `id` fields are ignored and can be omitted.
+
+An opted-in mod can override plugin text from any of its string JSON files by
+using `plugin.<plugin-id>:Key`. It does not need to copy the plugin's file.
+Mods opt in with top-level `"localization": "namespaced"` in
+`d2rloader/metadata.json`. Without it, mods keep native string loading and IDs.
+Mod overrides win over plugin overrides. Conflicting plugin overrides are errors.
+Packed MPQs need a listfile so D2RLoader can discover their string files.
+See [Namespaced strings](LOCALIZATION.md) for complete examples.
 
 To package a release, leave the game and run this from the main menu:
 
@@ -798,7 +805,10 @@ visibility or enabled state, and send a normal target/command/text action.
 
 ### Localization
 
-`LocalizationService` copies active UTF-8 text by numeric id or string key.
+`LocalizationService` copies active UTF-8 text by key. A local key such as
+`Title` belongs to the calling plugin. Use `d2r:strCancel` to read native game
+text, or `d2rloader:D2RLoaderSettingsGeneral` to read loader text. Numeric lookup
+accepts original game IDs only. The service version is 2.
 Call once with a null or small output buffer to get `BufferTooSmall` and the
 required byte count, then call again with that size. The count includes the
 trailing null byte.

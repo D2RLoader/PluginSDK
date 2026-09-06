@@ -26,7 +26,9 @@ using GetStringByKeyFn = Result(__cdecl*)(const PluginContext* context, const ch
 
 // Text is copied as UTF-8, including the trailing null byte. Pass a null or small
 // buffer first to receive BufferTooSmall and the required byte count.
-// Numeric string ids are limited to 0 through 65535.
+// Local keys search this plugin's namespace. Use d2r:Key or d2rloader:Key to
+// reference game or loader text. Numeric lookup accepts original game IDs only.
+// Package JSON defines strings by Key; custom id fields are ignored.
 
 static_assert(sizeof(Result) == sizeof(uint32_t));
 
@@ -34,7 +36,7 @@ static_assert(sizeof(Result) == sizeof(uint32_t));
 
 struct LocalizationService {
 	static constexpr ServiceId Id         = ServiceId::Localization;
-	static constexpr uint32_t  AbiVersion = 1;
+	static constexpr uint32_t  AbiVersion = 2;
 
 	uint32_t                       serviceSize;
 	uint32_t                       serviceVersion;

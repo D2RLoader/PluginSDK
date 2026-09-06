@@ -141,7 +141,7 @@ static_assert(D2RL::LifecycleServiceRequiredSize == 40);
 static_assert(sizeof(D2RL::LocalizationService) == 24);
 static_assert(alignof(D2RL::LocalizationService) == 8);
 static_assert(static_cast<uint32_t>(D2RL::LocalizationService::Id) == 14);
-static_assert(D2RL::LocalizationService::AbiVersion == 1);
+static_assert(D2RL::LocalizationService::AbiVersion == 2);
 static_assert(offsetof(D2RL::LocalizationService, serviceSize) == 0);
 static_assert(offsetof(D2RL::LocalizationService, serviceVersion) == 4);
 static_assert(offsetof(D2RL::LocalizationService, getStringById) == 8);
