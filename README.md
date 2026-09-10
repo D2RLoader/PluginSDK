@@ -407,17 +407,27 @@ A plugin may replace individual game strings through its own file:
 data/local/lng/strings/d2rloader/<plugin-id>/strings.json
 ```
 
-Each plugin owns a string namespace: `plugin.<plugin-id>`. A local `Key` defines
+Each plugin owns a string namespace matching its `PluginInfo.id`, for example
+`d2rl-sample`. The `d2rl-` prefix is recommended and is not added automatically.
+A local `Key` defines
 new text in that namespace. To replace existing text, use its full key, such as
 `d2r:strCancel` or `d2rloader:D2RLoaderSettingsGeneral`. Supply only the languages
 you want to change. Custom `id` fields are ignored and can be omitted.
 
-An opted-in mod can override plugin text from any of its string JSON files by
-using `plugin.<plugin-id>:Key`. It does not need to copy the plugin's file.
-Mods opt in with top-level `"localization": "namespaced"` in
-`d2rloader/metadata.json`. Without it, mods keep native string loading and IDs.
+Any mod can override plugin text from its string JSON files by
+using `<plugin-id>:Key`. It does not need to copy the plugin's file.
+Mods choose a namespace for their own strings with top-level `"namespace": "sanctuary"` in
+`d2rloader/metadata.json`. Explicit references and overrides work without this field.
+Without `namespace`, unqualified mod strings keep native loading and IDs. Excel string references
+without a namespace always use `d2r:`; custom references need `namespace:Key`.
 Mod overrides win over plugin overrides. Conflicting plugin overrides are errors.
-Packed MPQs need a listfile so D2RLoader can discover their string files.
+Packed MPQs need a listfile to discover arbitrary string filenames. Native mod
+filenames already opened by the game also support overrides without a listfile.
+
+Plugin layout text must use explicit references, such as
+`@charm-inv:CharmInvPanelTitle` or `@d2r:strClose`. This keeps text working when
+a mod copies the layout. An unqualified plugin layout reference reports an error
+in the log and notification center, and that layout is not loaded.
 See [Namespaced strings](LOCALIZATION.md) for complete examples.
 
 To package a release, leave the game and run this from the main menu:
