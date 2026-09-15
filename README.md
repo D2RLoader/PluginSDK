@@ -18,7 +18,7 @@ See [SDK and ABI Versioning](#sdk-and-abi-versioning).
 ## Requirements
 
 * Windows x64
-* CMake 3.28+
+* CMake 3.29+
 * MSVC or clang-cl
 * D2RLoader with plugin ABI 4 support and the services your plugin requires
 
@@ -150,10 +150,18 @@ cmake --build build --target D2RLHelloConsolePlugin
 To run the SDK checks too:
 
 ```powershell
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DD2RLPLUGIN_BUILD_TESTS=ON
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON
 cmake --build build --target D2RLPluginTests
 ctest --test-dir build --output-on-failure
 ```
+
+With the MSVC developer environment open and clang-cl on `PATH`, the Debug workflow runs all three steps:
+
+```powershell
+cmake --workflow --preset debug
+```
+
+Tests are enabled in the Debug preset and disabled in Release. `ctest --preset debug` runs the tests that have already been built. Use `cmake --build --preset debug-tests` to build the checks first.
 
 The build copies sample plugins under the output `d2rloader` folder.
 
@@ -429,6 +437,18 @@ Plugin layout text must use explicit references, such as
 a mod copies the layout. An unqualified plugin layout reference reports an error
 in the log and notification center, and that layout is not loaded.
 See [Namespaced strings](LOCALIZATION.md) for complete examples.
+
+When packaging with `D2RLCompiler build-plugin`, put the plugin id in
+`data/d2rloader/compiler/table-schemas.json` inside the companion folder. The id
+must match `PluginInfo.id`. A plugin with strings but no custom tables can use:
+
+```json
+{
+	"format": 1,
+	"plugin": "sp-trading",
+	"tables": []
+}
+```
 
 To package a release, leave the game and run this from the main menu:
 
