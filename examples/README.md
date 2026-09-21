@@ -17,8 +17,9 @@ cmake --build build --target D2RLHelloConsolePlugin
 ## Data tables plugin
 
 `data-tables` adds a custom TXT file with two columns. After the tables load, it
-copies and logs its rows. It also reads the RotW `Levels` table and finds level
-124. It does not use D2RLoader's internal `DataTables` object.
+copies and logs its rows. It also reads the RotW `Levels` and compiled
+`TreasureClasses` tables. It does not use D2RLoader's internal `DataTables`
+object.
 
 Build it with:
 
@@ -30,8 +31,9 @@ cmake --build build --target D2RLDataTablesSamplePlugin
 
 `gameplay-lifecycle` listens for joining and leaving a game, the local player
 becoming ready, initial and later act/area changes, character-level changes,
-quest completion, and resurrection. It logs each event. It also shows when
-handles from the previous game stop being valid.
+quest completion, resurrection, and monster deaths with their direct killers.
+It logs each event. It also shows when handles from the previous game stop being
+valid.
 
 Build it with:
 
@@ -116,9 +118,10 @@ cmake --build build --target D2RLUiPanelSamplePlugin
 ## Widget and localization plugin
 
 `widget-localization` opens a panel with D2R's normal frame. Its button uses the
-current translation of `strCancel`. The sample finds the button by name, enables
-it, reads its position, and prints the translated text to the console and log.
-Run `widget-localization-sample` in game.
+current translation of `strCancel`. The sample finds the button and input box by
+name, reads the entered UTF-8 text and button position, and prints the result to
+the console and log. Run `widget-localization-sample` once to open the panel,
+type some text, then run it again.
 
 Build it with:
 

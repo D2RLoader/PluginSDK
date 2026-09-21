@@ -7,7 +7,7 @@ use D2RLoader's internal code.
 Start with `D2RLPlugin/api.h` and the example closest to what you want to build.
 Most plugins do not need to include each service header separately.
 
-**SDK release: 0.2.0 · Plugin ABI: 4**
+**SDK release: 0.3.0 · Plugin ABI: 4**
 
 The SDK release tells you which headers and build tools you have. The plugin ABI
 is the agreement on data and function calls between a plugin DLL and the loader.
@@ -257,7 +257,7 @@ These versions describe different parts of a plugin build:
 
 | Version | Source | Used for |
 |---|---|---|
-| SDK release version, currently `0.2.0` | `D2RL_SDK_VERSION` in `include/D2RLPlugin/version.h` | Identifies the SDK headers and build tools used to build a plugin. |
+| SDK release version, currently `0.3.0` | `D2RL_SDK_VERSION` in `include/D2RLPlugin/version.h` | Identifies the SDK headers and build tools used to build a plugin. |
 | Plugin ABI version, currently `4` | `D2RL_PLUGIN_ABI_VERSION` in the same header | Identifies the data layout and function calls shared by a plugin DLL and the loader. |
 | Minimum supported plugin ABI, currently `2` | `D2RL_PLUGIN_MIN_ABI_VERSION` in the same header | The oldest plugin ABI the loader accepts. |
 | Service ABI version, such as `EncounterService::AbiVersion = 1` | Each service header | Identifies the data layout and function calls for one service, requested through `QueryService`. |
@@ -277,15 +277,29 @@ before reading newer fields. Check that a function pointer is set before
 calling it. If a required service or field is missing, report the requirement
 and fail to load cleanly. An optional feature can stay disabled.
 
-For an installed SDK package, `find_package(D2RLPlugin 0.2.0 REQUIRED)` accepts
+For an installed SDK package, `find_package(D2RLPlugin 0.3.0 REQUIRED)` accepts
 that release or a later one with the same major number. All `0.x` releases
-share major zero. Use `find_package(D2RLPlugin 0.2.0 EXACT REQUIRED)` to require
+share major zero. Use `find_package(D2RLPlugin 0.3.0 EXACT REQUIRED)` to require
 that specific release. These build-time checks do not check which services
 the running loader provides.
 
 Plugin ABI 3 introduced roles. D2RLoader treats ABI 2 plugins as
 `PluginFlags::Shared`. They must match in TCP/IP and are recorded in the
 character's plugin history.
+
+### SDK 0.3.0 additions
+
+SDK 0.3.0 adds three features without changing the plugin ABI or the existing
+service ABI numbers:
+
+- `TableId::TreasureClasses` exposes D2R's compiled runtime form of
+  TreasureClassEx.
+- `LifecycleService` can report monster deaths with copied monster and direct
+  killer identities.
+- `WidgetService::getInputText` copies the current UTF-8 text from an input box.
+
+These are appended service fields. Check the full service size before using
+them. A plugin built with SDK 0.2.0 keeps using the older part of each service.
 
 ### SDK 0.2.0 source-name changes
 
@@ -372,6 +386,13 @@ existing completions are baselined when the player becomes ready. Its difficulty
 and zero-based quest-state row are in the event. Register one listener for each
 event you need while the plugin loads. A new game session makes player and item
 handles from the old game invalid.
+
+Monster-death listeners are separate because they run on the authoritative
+server thread, not the UI thread. The event is sent after D2R handles the normal
+drop. It contains copied game, level, monster, and direct-killer identities.
+The killer may be a player, monster, missile, or another unit type. A missing
+killer uses `UnitType::Invalid` and `InvalidUnitId`. The callback is for
+observation only. Keep it short and queue later work when needed.
 
 ### Resources and Companion MPQs
 
@@ -564,8 +585,11 @@ Properties `*Id 0` for exactly `+25 Defense`.
 
 `generationSeed` controls item generation. `itemSeed` is stored on the item.
 Both must be zero in `Random` mode. `Deterministic` mode supplies both and checks
-that D2R kept them. Prefix and suffix ids use D2R's one-based MagicAffix ids. Set
-and Unique rows are zero-based. `RandomQualityRecord` lets D2R choose. D2R's
+that D2R kept them. Prefix and suffix ids use D2R's one-based combined MagicAffix
+ids, in MagicSuffix, MagicPrefix, then AutoMagic order. They are not row numbers
+from one source file. For example, when MagicSuffix has 10 rows, MagicPrefix
+table-local ID 1 has combined ID 11. Set and Unique rows are zero-based.
+`RandomQualityRecord` lets D2R choose. D2R's
 once-per-game rule for each Unique row stays enabled by default, including for
 random selection. Set `ItemCreateFlag::AllowDuplicateUnique` only when the
 plugin intentionally permits the same Unique row more than once. Set items do
@@ -832,6 +856,10 @@ callback. A remote TCP/IP client must ask the host to make those changes.
 store plugin-owned paths, not game pointers, so they still work after a panel is
 reopened. From a UI callback, a plugin may read a local rectangle, change
 visibility or enabled state, and send a normal target/command/text action.
+`getInputText` accepts an `InputTextBoxWidget` or a derived widget. Call it first
+with a null or small output buffer to get `BufferTooSmall` and the required UTF-8
+byte count. The count includes the trailing null byte. Call it again with a
+large enough buffer. Like the other widget calls, it must run on the UI thread.
 
 ### Localization
 
@@ -892,9 +920,14 @@ by its stable `TableId`.
 
 Each `TableView` reports the row pointer, count, size, bank, and load revision.
 `getRow` reads by physical row index. `findRowById` also supports the logical
-ids in `Skills` and `Levels`; `Items` and `ItemTypes` use their row indexes.
-`findRowByCode` supports `Items` and `ItemTypes`. Other keyed lookups return
-`Unsupported`.
+ids in `Skills` and `Levels`; `Items`, `ItemTypes`, and `TreasureClasses` use
+their row indexes. `findRowByCode` supports `Items` and `ItemTypes`. Other keyed
+lookups return `Unsupported`.
+
+`TreasureClasses` is D2R's compiled runtime form of TreasureClassEx. Its rows
+are not `TreasureClassExTxt` rows. The runtime layout contains a dynamic item
+list, so always check the reported row size against the layout for the running
+game build before reading it.
 
 Rows use the compiled layout for the running game build. Set `structSize` on
 every output and check `rowSize` before casting a pointer. Use this service only

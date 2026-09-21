@@ -1,7 +1,7 @@
 #pragma once
 
 // SDK release string, also used by CMake for the project and package version.
-#define D2RL_SDK_VERSION "0.2.0"
+#define D2RL_SDK_VERSION "0.3.0"
 
 // Oldest plugin ABI the loader supports.
 #define D2RL_PLUGIN_MIN_ABI_VERSION 2

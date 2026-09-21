@@ -30,6 +30,7 @@ enum class Result : uint32_t {
 	OwnerMismatch   = 7,
 	StaleHandle     = 8,
 	CallbackFault   = 9,
+	BufferTooSmall  = 10,
 };
 
 struct Rect {
@@ -58,11 +59,14 @@ using GetWidgetRectFn    = Result(__cdecl*)(const PluginContext* context, Widget
 using SetWidgetVisibleFn = Result(__cdecl*)(const PluginContext* context, WidgetHandle handle, bool visible) noexcept;
 using SetWidgetEnabledFn = Result(__cdecl*)(const PluginContext* context, WidgetHandle handle, bool enabled) noexcept;
 using DispatchUiActionFn = Result(__cdecl*)(const PluginContext* context, const UiAction* action) noexcept;
+using GetInputTextFn     = Result(__cdecl*)(const PluginContext* context, WidgetHandle handle, char* output, uint32_t outputSize, uint32_t* requiredSize) noexcept;
 
 // Every widget call must run on the UI thread, normally through
 // ThreadService::runOnUiThread. findWidget searches below its parent handle.
 // dispatchUiAction broadcasts the same target/command/text shape used by native
-// panel messages.
+// panel messages. getInputText accepts InputTextBoxWidget and derived widgets.
+// It copies UTF-8 text including the trailing null byte. Pass a null or small
+// buffer first to receive BufferTooSmall and the required byte count.
 
 static_assert(sizeof(Result) == sizeof(uint32_t));
 static_assert(std::is_standard_layout_v<Rect> && std::is_trivially_copyable_v<Rect>);
@@ -84,6 +88,7 @@ struct WidgetService {
 	Widgets::SetWidgetVisibleFn setWidgetVisible;
 	Widgets::SetWidgetEnabledFn setWidgetEnabled;
 	Widgets::DispatchUiActionFn dispatchUiAction;
+	Widgets::GetInputTextFn     getInputText;
 };
 
 inline constexpr uint32_t WidgetServiceSize         = static_cast<uint32_t>(sizeof(WidgetService));
@@ -94,6 +99,7 @@ inline auto HasWidgetServiceField(const WidgetService* service, uint32_t fieldEn
 }
 
 static_assert(std::is_standard_layout_v<WidgetService> && std::is_trivially_copyable_v<WidgetService>);
-static_assert(sizeof(WidgetService) == 56);
+static_assert(offsetof(WidgetService, getInputText) == 56);
+static_assert(sizeof(WidgetService) == 64);
 
 }

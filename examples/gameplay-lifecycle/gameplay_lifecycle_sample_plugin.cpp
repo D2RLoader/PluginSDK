@@ -9,7 +9,7 @@ static constexpr D2RL::PluginInfo GameplayLifecyclePluginInfo {
 	.name        = "Gameplay Lifecycle Sample Plugin",
 	.version     = "0.1.0",
 	.author      = "D2RLoader",
-	.description = "Reports game, player, location, level-up, quest, and resurrection events.",
+	.description = "Reports game, player, monster-death, location, level-up, quest, and resurrection events.",
 	.flags       = D2RL::PluginFlags::Shared,
 };
 
@@ -24,6 +24,20 @@ static auto EventName(D2RL::Lifecycle::GameplayEventKind kind) noexcept -> const
 		case D2RL::Lifecycle::GameplayEventKind::PlayerLevelChanged: return "player level changed";
 		case D2RL::Lifecycle::GameplayEventKind::QuestCompleted:     return "quest completed";
 		default:                                                     return "unknown";
+	}
+}
+
+static auto UnitTypeName(D2RL::Lifecycle::UnitType type) noexcept -> const char* {
+	switch (type) {
+		case D2RL::Lifecycle::UnitType::Player:  return "player";
+		case D2RL::Lifecycle::UnitType::Monster: return "monster";
+		case D2RL::Lifecycle::UnitType::Object:  return "object";
+		case D2RL::Lifecycle::UnitType::Missile: return "missile";
+		case D2RL::Lifecycle::UnitType::Item:    return "item";
+		case D2RL::Lifecycle::UnitType::Tile:    return "tile";
+		case D2RL::Lifecycle::UnitType::Deleted: return "deleted";
+		case D2RL::Lifecycle::UnitType::Invalid: return "none";
+		default:                                 return "unknown";
 	}
 }
 
@@ -43,6 +57,26 @@ static void __cdecl OnGameplayEvent(const D2RL::PluginContext* context, const D2
 		event->currentValue,
 		event->difficulty,
 		event->questRecordId);
+	context->LogInfo(message);
+}
+
+static void __cdecl OnMonsterDeath(const D2RL::PluginContext* context, const D2RL::Lifecycle::MonsterDeathEvent* event, void*) noexcept {
+	if (context == nullptr || !D2RL::Lifecycle::HasMonsterDeathEventField(event, D2RL::Lifecycle::MonsterDeathEventRequiredSize)) {
+		return;
+	}
+
+	char message[256] {};
+	std::snprintf(message,
+		sizeof(message),
+		"Monster death: game=%u difficulty=%u level=%d monster=%u/%u killer=%s %u/%u.",
+		event->gameId,
+		event->difficulty,
+		event->levelId,
+		event->monster.id,
+		event->monster.classId,
+		UnitTypeName(event->killer.type),
+		event->killer.id,
+		event->killer.classId);
 	context->LogInfo(message);
 }
 
@@ -85,7 +119,13 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) 
 			return false;
 		}
 	}
-	return true;
+
+	const D2RL::Lifecycle::MonsterDeathListener deathListener {
+		.structSize = D2RL::Lifecycle::MonsterDeathListenerSize,
+		.callback   = OnMonsterDeath,
+	};
+	D2RL::Lifecycle::ListenerHandle deathHandle = D2RL::Lifecycle::InvalidHandle;
+	return lifecycle->registerMonsterDeathListener(context, &deathListener, &deathHandle) == D2RL::Lifecycle::Result::Success;
 }
 
 D2RL_PLUGIN_EXPORT void D2RLoaderUnloadPlugin() noexcept {}

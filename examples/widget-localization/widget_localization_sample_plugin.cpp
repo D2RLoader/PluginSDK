@@ -9,7 +9,7 @@ static constexpr D2RL::PluginInfo WidgetLocalizationPluginInfo {
 	.name        = "Widget and Localization Sample Plugin",
 	.version     = "0.1.0",
 	.author      = "D2RLoader",
-	.description = "Resolves localized text and inspects a namespaced widget.",
+	.description = "Reads input text, resolves localized text, and inspects a namespaced widget.",
 	.flags       = D2RL::PluginFlags::Client,
 };
 
@@ -39,14 +39,33 @@ static constexpr char PanelLayout[] = R"json({
 					"type": "TextBoxWidget", "name": "Help",
 					"fields": {
 						"rect": { "x": 150, "y": 150, "width": 956, "height": 130 },
-						"text": "The command finds the named button below, reads its rectangle, and resolves its label through D2R's localization table.",
+						"text": "Type below, then run widget-localization-sample again. The command reads the input text, button rectangle, and localized label.",
 						"style": "$StyleModalDialogDescription"
+					}
+				},
+				{
+					"type": "InputTextBoxWidget", "name": "SampleInput",
+					"fields": {
+						"rect": { "x": 150, "y": 275, "width": 956, "height": 50 },
+						"maxStringLength": 127,
+						"canInsertNewlines": false,
+						"backgroundColor": "$FontColorTransparent",
+						"fontType": "12ptF",
+						"fontStyle": {
+							"fontFace": "BlizzardGlobal",
+							"fontColor": "$FontColorWhite",
+							"pointSize": "$SmallFontSize"
+						},
+						"hint": {
+							"text": "Type text here",
+							"style": "$StyleModalDialogDescription"
+						}
 					}
 				},
 				{
 					"type": "ButtonWidget", "name": "LocalizedCancel",
 					"fields": {
-						"rect": { "x": 477, "y": 330 },
+						"rect": { "x": 477, "y": 380 },
 						"filename": "Panel\\Modals\\ModalButton",
 						"focusIndicatorFilename": "Controller/HoverImages/ModalButton_Hover",
 						"pressedFrame": 1,
@@ -63,10 +82,10 @@ static constexpr char PanelLayout[] = R"json({
 	]
 })json";
 
-static const D2RL::LocalizationService*   localization;
-static const D2RL::PanelService*          panels;
-static const D2RL::WidgetService*         widgets;
-static D2RL::Panels::RegistrationHandle   panel = D2RL::Panels::InvalidHandle;
+static const D2RL::LocalizationService* localization;
+static const D2RL::PanelService*        panels;
+static const D2RL::WidgetService*       widgets;
+static D2RL::Panels::RegistrationHandle panel = D2RL::Panels::InvalidHandle;
 
 static auto WidgetLocalizationCommand(D2R::Game::Client*, const D2RL::ConsoleCommandContext* command, void*) noexcept -> D2RL::ConsoleCommandResult {
 	if (command == nullptr || command->plugin == nullptr) {
@@ -92,12 +111,17 @@ static auto WidgetLocalizationCommand(D2R::Game::Client*, const D2RL::ConsoleCom
 
 	D2RL::Widgets::WidgetHandle panelWidget  = D2RL::Widgets::InvalidHandle;
 	D2RL::Widgets::WidgetHandle cancelWidget = D2RL::Widgets::InvalidHandle;
+	D2RL::Widgets::WidgetHandle inputWidget  = D2RL::Widgets::InvalidHandle;
 	D2RL::Widgets::Rect         rect {};
 	if (widgets->findPanel(command->plugin, "widget-localization-sample/SamplePanel", &panelWidget) != D2RL::Widgets::Result::Success) {
 		return D2RL::ConsoleCommandResult::Failed;
 	}
 
 	if (widgets->findWidget(command->plugin, panelWidget, "LocalizedCancel", &cancelWidget) != D2RL::Widgets::Result::Success) {
+		return D2RL::ConsoleCommandResult::Failed;
+	}
+
+	if (widgets->findWidget(command->plugin, panelWidget, "SampleInput", &inputWidget) != D2RL::Widgets::Result::Success) {
 		return D2RL::ConsoleCommandResult::Failed;
 	}
 
@@ -113,8 +137,21 @@ static auto WidgetLocalizationCommand(D2R::Game::Client*, const D2RL::ConsoleCom
 		return D2RL::ConsoleCommandResult::Failed;
 	}
 
-	char message[224] {};
-	std::snprintf(message, sizeof(message), "Localized strCancel=\"%s\"; LocalizedCancel rect is %d,%d %dx%d.", text.data(), rect.x, rect.y, rect.width, rect.height);
+	uint32_t inputRequired = 0;
+	if (widgets->getInputText(command->plugin, inputWidget, nullptr, 0, &inputRequired) != D2RL::Widgets::Result::BufferTooSmall) {
+		return D2RL::ConsoleCommandResult::Failed;
+	}
+	std::array<char, 128> inputText {};
+	if (inputRequired == 0 || inputRequired > inputText.size()) {
+		return D2RL::ConsoleCommandResult::Failed;
+	}
+
+	if (widgets->getInputText(command->plugin, inputWidget, inputText.data(), static_cast<uint32_t>(inputText.size()), &inputRequired) != D2RL::Widgets::Result::Success) {
+		return D2RL::ConsoleCommandResult::Failed;
+	}
+
+	char message[384] {};
+	std::snprintf(message, sizeof(message), "Input=\"%s\"; localized strCancel=\"%s\"; LocalizedCancel rect is %d,%d %dx%d.", inputText.data(), text.data(), rect.x, rect.y, rect.width, rect.height);
 	command->plugin->WriteConsoleMessage(message);
 	command->plugin->LogInfo(message);
 	return D2RL::ConsoleCommandResult::Handled;
@@ -180,7 +217,7 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) 
 	if (panels->registerPanel(context, &registration, &panel) != D2RL::Panels::Result::Success) {
 		return false;
 	}
-	return context->RegisterConsoleCommand("widget-localization-sample", WidgetLocalizationCommand, "Open a panel and report localized text and widget geometry.");
+	return context->RegisterConsoleCommand("widget-localization-sample", WidgetLocalizationCommand, "Open a panel and report its input text, localized text, and widget geometry.");
 }
 
 D2RL_PLUGIN_EXPORT void D2RLoaderUnloadPlugin() noexcept {}

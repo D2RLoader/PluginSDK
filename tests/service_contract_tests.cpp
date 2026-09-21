@@ -126,7 +126,7 @@ static_assert(offsetof(D2RL::ItemInteractionService, registerListener) == 8);
 static_assert(offsetof(D2RL::ItemInteractionService, unregisterListener) == 16);
 static_assert(D2RL::ItemInteractionServiceRequiredSize == 24);
 
-static_assert(sizeof(D2RL::LifecycleService) == 40);
+static_assert(sizeof(D2RL::LifecycleService) == 56);
 static_assert(alignof(D2RL::LifecycleService) == 8);
 static_assert(static_cast<uint32_t>(D2RL::LifecycleService::Id) == 1);
 static_assert(D2RL::LifecycleService::AbiVersion == 1);
@@ -136,7 +136,14 @@ static_assert(offsetof(D2RL::LifecycleService, registerDataTablesLoadedListener)
 static_assert(offsetof(D2RL::LifecycleService, unregisterDataTablesLoadedListener) == 16);
 static_assert(offsetof(D2RL::LifecycleService, registerGameplayEventListener) == 24);
 static_assert(offsetof(D2RL::LifecycleService, unregisterGameplayEventListener) == 32);
-static_assert(D2RL::LifecycleServiceRequiredSize == 40);
+static_assert(offsetof(D2RL::LifecycleService, registerMonsterDeathListener) == 40);
+static_assert(offsetof(D2RL::LifecycleService, unregisterMonsterDeathListener) == 48);
+static_assert(D2RL::LifecycleServiceRequiredSize == 56);
+static_assert(sizeof(D2RL::Lifecycle::UnitIdentity) == 16);
+static_assert(sizeof(D2RL::Lifecycle::MonsterDeathEvent) == 56);
+static_assert(sizeof(D2RL::Lifecycle::MonsterDeathListener) == 24);
+static_assert(offsetof(D2RL::Lifecycle::MonsterDeathEvent, monster) == 24);
+static_assert(offsetof(D2RL::Lifecycle::MonsterDeathEvent, killer) == 40);
 
 static_assert(sizeof(D2RL::LocalizationService) == 24);
 static_assert(alignof(D2RL::LocalizationService) == 8);
@@ -215,7 +222,7 @@ static_assert(offsetof(D2RL::ThreadService, runOnUiThread) == 8);
 static_assert(offsetof(D2RL::ThreadService, runOnGameThread) == 16);
 static_assert(D2RL::ThreadServiceRequiredSize == 24);
 
-static_assert(sizeof(D2RL::WidgetService) == 56);
+static_assert(sizeof(D2RL::WidgetService) == 64);
 static_assert(alignof(D2RL::WidgetService) == 8);
 static_assert(static_cast<uint32_t>(D2RL::WidgetService::Id) == 12);
 static_assert(D2RL::WidgetService::AbiVersion == 1);
@@ -227,7 +234,8 @@ static_assert(offsetof(D2RL::WidgetService, getWidgetRect) == 24);
 static_assert(offsetof(D2RL::WidgetService, setWidgetVisible) == 32);
 static_assert(offsetof(D2RL::WidgetService, setWidgetEnabled) == 40);
 static_assert(offsetof(D2RL::WidgetService, dispatchUiAction) == 48);
-static_assert(D2RL::WidgetServiceRequiredSize == 56);
+static_assert(offsetof(D2RL::WidgetService, getInputText) == 56);
+static_assert(D2RL::WidgetServiceRequiredSize == 64);
 
 static int failures = 0;
 

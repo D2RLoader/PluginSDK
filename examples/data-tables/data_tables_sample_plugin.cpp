@@ -40,9 +40,9 @@ static constexpr std::array<D2RL::CustomTables::ColumnDefinition, 2> OfferColumn
 										  },
 };
 
-static const D2RL::DataTableService*     dataTables;
-static const D2RL::CustomTableService*   customTables;
-static D2RL::CustomTables::TableHandle   offerTable = D2RL::CustomTables::InvalidHandle;
+static const D2RL::DataTableService*   dataTables;
+static const D2RL::CustomTableService* customTables;
+static D2RL::CustomTables::TableHandle offerTable = D2RL::CustomTables::InvalidHandle;
 
 static auto ReportLevels(const D2RL::PluginContext* context, uint64_t expectedRevision) noexcept -> bool {
 	D2RL::DataTables::TableView levels {
@@ -66,6 +66,30 @@ static auto ReportLevels(const D2RL::PluginContext* context, uint64_t expectedRe
 	const auto revision = static_cast<unsigned long long>(levels.revision);
 	char       message[192] {};
 	std::snprintf(message, sizeof(message), "RotW Levels has %u compiled rows of %u bytes; level 124 is row %u (revision %llu).", levels.rowCount, levels.rowSize, level.rowIndex, revision);
+	context->LogInfo(message);
+	return true;
+}
+
+static auto ReportTreasureClasses(const D2RL::PluginContext* context, uint64_t expectedRevision) noexcept -> bool {
+	D2RL::DataTables::TableView treasureClasses {
+		.structSize = D2RL::DataTables::TableViewSize,
+		.bank       = D2RL::DataTables::Bank::Rotw,
+	};
+	const auto tableResult = dataTables->getTable(context, D2RL::DataTables::Bank::Rotw, D2RL::DataTables::TableId::TreasureClasses, &treasureClasses);
+	if (tableResult != D2RL::DataTables::Result::Success || treasureClasses.revision != expectedRevision || treasureClasses.rowCount == 0) {
+		return false;
+	}
+
+	D2RL::DataTables::RowView first {
+		.structSize = D2RL::DataTables::RowViewSize,
+		.bank       = D2RL::DataTables::Bank::Rotw,
+	};
+	if (dataTables->findRowById(context, D2RL::DataTables::Bank::Rotw, D2RL::DataTables::TableId::TreasureClasses, 0, &first) != D2RL::DataTables::Result::Success) {
+		return false;
+	}
+
+	char message[192] {};
+	std::snprintf(message, sizeof(message), "RotW TreasureClasses has %u compiled runtime rows of %u bytes; ID 0 is row %u.", treasureClasses.rowCount, treasureClasses.rowSize, first.rowIndex);
 	context->LogInfo(message);
 	return true;
 }
@@ -109,7 +133,7 @@ static auto ReportOffers(const D2RL::PluginContext* context) noexcept -> bool {
 }
 
 static void LogReadFailure(const D2RL::PluginContext* context) noexcept {
-	context->LogWarn("The data-tables sample could not read RotW Levels after the load completed.");
+	context->LogWarn("The data-tables sample could not read the RotW compiled tables after the load completed.");
 }
 
 static void __cdecl OnDataTablesLoaded(const D2RL::PluginContext* context, const D2RL::Lifecycle::DataTablesLoadedEvent* event, void* /*userData*/) noexcept {
@@ -128,6 +152,11 @@ static void __cdecl OnDataTablesLoaded(const D2RL::PluginContext* context, const
 	}
 
 	if (!ReportLevels(context, event->revision)) {
+		LogReadFailure(context);
+		return;
+	}
+
+	if (!ReportTreasureClasses(context, event->revision)) {
 		LogReadFailure(context);
 		return;
 	}

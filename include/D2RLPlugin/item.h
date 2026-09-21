@@ -161,6 +161,10 @@ struct ItemDestination {
 // once-per-game rule for each Unique row remains active by default. Set the
 // AllowDuplicateUnique flag only when the plugin intentionally permits a
 // previously generated Unique row to be selected again.
+// prefixIds and suffixIds are one-based IDs in D2R's combined MagicSuffix,
+// MagicPrefix, and AutoMagic table. Zero leaves that slot unforced. A prefix ID
+// must point to MagicPrefix, and a suffix ID must point to MagicSuffix. For
+// example, with 10 suffix rows, MagicPrefix table-local ID 1 has combined ID 11.
 // quantity and durability use DefaultValue to keep the native default.
 // socketCount is the exact number of empty sockets requested.
 struct ItemCreateSpec {
@@ -186,8 +190,8 @@ struct ItemCreateSpec {
 
 // This is a copy. quantity is one for a non-stackable item. qualityRecordId is
 // a zero-based SetItems/UniqueItems row, or -1 when there is no such row.
-// prefixes and suffixes are native one-based MagicAffix ids. sharedStashPage is
-// UINT32_MAX when the tab is not known.
+// prefixIds and suffixIds use the same combined IDs as ItemCreateSpec.
+// sharedStashPage is UINT32_MAX when the tab is not known.
 struct ItemInfo {
 	uint32_t      structSize;
 	uint32_t      flags;

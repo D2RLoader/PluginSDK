@@ -9,7 +9,7 @@ if(NOT D2RLPLUGIN_VERSION_COUNT EQUAL 1)
 	message(FATAL_ERROR "version.h must define D2RL_SDK_VERSION exactly once.")
 endif()
 if(NOT D2RLPLUGIN_VERSION_LINE MATCHES "^#define[ \t]+D2RL_SDK_VERSION[ \t]+\"([0-9]+\\.[0-9]+\\.[0-9]+)\"[ \t]*$")
-	message(FATAL_ERROR "Set D2RL_SDK_VERSION to a quoted MAJOR.MINOR.PATCH value, such as \"0.2.0\".")
+	message(FATAL_ERROR "Set D2RL_SDK_VERSION to a quoted MAJOR.MINOR.PATCH value, such as \"0.3.0\".")
 endif()
 set(D2RLPLUGIN_SDK_VERSION "${CMAKE_MATCH_1}")
 

@@ -110,6 +110,7 @@ enum class TableId : uint32_t {
 	Shrines              = 73,
 	Composit             = 74,
 	ArmType              = 75,
+	TreasureClasses      = 76, // compiled runtime form of TreasureClassEx
 };
 
 // Set structSize to TableViewSize before calling getTable. rows points to the
@@ -189,7 +190,9 @@ using FindRowByIdFn   = Result(__cdecl*)(const PluginContext* context, Bank bank
 using FindRowByCodeFn = Result(__cdecl*)(const PluginContext* context, Bank bank, TableId tableId, uint32_t code, RowView* view) noexcept;
 
 // getTable and getRow support every listed table. findRowById supports Items,
-// ItemTypes, Skills, and Levels. findRowByCode supports Items and ItemTypes.
+// ItemTypes, TreasureClasses, Skills, and Levels. Items, ItemTypes, and
+// TreasureClasses use their row indexes. findRowByCode supports Items and
+// ItemTypes.
 // Calls made off the captured game thread return Busy.
 
 static_assert(sizeof(Result) == sizeof(uint32_t));
