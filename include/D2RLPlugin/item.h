@@ -16,7 +16,7 @@ namespace Items {
 inline constexpr uint32_t MaxProperties             = 64;
 inline constexpr uint32_t MaxTransactionInputs      = 64;
 inline constexpr uint32_t MaxTransactionOutputs     = 64;
-inline constexpr uint32_t MaxExistingItemOperations = 64;
+inline constexpr uint32_t MaxExistingItemOperations = 4'096;
 inline constexpr uint32_t DefaultValue              = std::numeric_limits<uint32_t>::max();
 inline constexpr uint32_t RandomQualityRecord       = std::numeric_limits<uint32_t>::max();
 inline constexpr uint32_t NoFailedOperation         = std::numeric_limits<uint32_t>::max();
@@ -36,6 +36,14 @@ enum class Result : uint32_t {
 	PolicyRejected   = 11,
 	NotAuthoritative = 12,
 };
+
+enum class ItemServiceCapability : uint64_t {
+	SharedStashWrite = 1ULL << 0U,
+};
+
+constexpr auto ItemServiceCapabilityBit(ItemServiceCapability capability) noexcept -> uint64_t {
+	return static_cast<uint64_t>(capability);
+}
 
 enum class Quality : uint32_t {
 	Unknown  = 0,
@@ -146,6 +154,8 @@ constexpr auto MakeExactProperty(uint32_t propertyId, int32_t value, int32_t par
 
 // Automatic finds the first free cell. Exact uses x/y as a top-left inventory
 // cell or a ground coordinate. customPageHandle is required only for CustomPage.
+// sharedStashPage is a zero-based normal tab number. It is used only when the
+// destination is SharedStash and structSize includes that field.
 struct ItemDestination {
 	uint32_t      structSize;
 	uint32_t      flags;
@@ -154,6 +164,8 @@ struct ItemDestination {
 	uint64_t      customPageHandle;
 	uint32_t      x;
 	uint32_t      y;
+	uint32_t      sharedStashPage;
+	uint32_t      reserved;
 };
 
 // qualityRecordId is a zero-based SetItems or UniqueItems row for forced Set or
@@ -294,10 +306,10 @@ inline constexpr uint32_t AllExistingItemEditFields = EditFieldBit(EditField::Du
 
 // Each item handle may appear only once. Debit must leave the item with a
 // positive logical quantity, so every operation preserves its handle and native
-// identity. Debit and Edit accept stored or cursor items. Move initially accepts
-// stored inventory, Cube, personal-stash, and current custom-page paths.
-// Equipment, cursor, belt, shared-stash, trade, corpse, and ground moves are
-// rejected before mutation.
+// identity. Debit and Edit accept stored or cursor items. Move accepts stored
+// inventory, Cube, personal stash, shared stash, and the current custom page.
+// Equipment, cursor, belt, trade, corpse, and ground moves are rejected before
+// mutation. Shared-stash moves require ItemServiceCapability::SharedStashWrite.
 struct ExistingItemOperation {
 	uint32_t                  structSize;
 	uint32_t                  flags;
@@ -355,29 +367,32 @@ struct SplitStackResult {
 
 using NativeItemEditCallback = void(__cdecl*)(const PluginContext* context, void* nativeItem, void* userData) noexcept;
 
-inline constexpr uint32_t PropertySpecSize                          = static_cast<uint32_t>(sizeof(PropertySpec));
-inline constexpr uint32_t ItemDestinationSize                       = static_cast<uint32_t>(sizeof(ItemDestination));
-inline constexpr uint32_t ItemDestinationRequiredSize               = ItemDestinationSize;
-inline constexpr uint32_t ItemCreateSpecSize                        = static_cast<uint32_t>(sizeof(ItemCreateSpec));
-inline constexpr uint32_t ItemCreateSpecRequiredSize                = ItemCreateSpecSize;
-inline constexpr uint32_t ItemInfoSize                              = static_cast<uint32_t>(sizeof(ItemInfo));
-inline constexpr uint32_t ItemInfoRequiredSize                      = ItemInfoSize;
-inline constexpr uint32_t ItemEditSize                              = static_cast<uint32_t>(sizeof(ItemEdit));
-inline constexpr uint32_t ItemEditRequiredSize                      = ItemEditSize;
-inline constexpr uint32_t TransactionSize                           = static_cast<uint32_t>(sizeof(Transaction));
-inline constexpr uint32_t TransactionRequiredSize                   = TransactionSize;
-inline constexpr uint32_t TransactionResultSize                     = static_cast<uint32_t>(sizeof(TransactionResult));
-inline constexpr uint32_t TransactionResultRequiredSize             = TransactionResultSize;
-inline constexpr uint32_t ExistingItemOperationSize                 = static_cast<uint32_t>(sizeof(ExistingItemOperation));
-inline constexpr uint32_t ExistingItemOperationRequiredSize         = ExistingItemOperationSize;
-inline constexpr uint32_t ExistingItemTransactionSize               = static_cast<uint32_t>(sizeof(ExistingItemTransaction));
-inline constexpr uint32_t ExistingItemTransactionRequiredSize       = ExistingItemTransactionSize;
-inline constexpr uint32_t ExistingItemTransactionResultSize         = static_cast<uint32_t>(sizeof(ExistingItemTransactionResult));
-inline constexpr uint32_t ExistingItemTransactionResultRequiredSize = ExistingItemTransactionResultSize;
-inline constexpr uint32_t SplitStackRequestSize                     = static_cast<uint32_t>(sizeof(SplitStackRequest));
-inline constexpr uint32_t SplitStackRequestRequiredSize             = SplitStackRequestSize;
-inline constexpr uint32_t SplitStackResultSize                      = static_cast<uint32_t>(sizeof(SplitStackResult));
-inline constexpr uint32_t SplitStackResultRequiredSize              = SplitStackResultSize;
+inline constexpr uint32_t PropertySpecSize                             = static_cast<uint32_t>(sizeof(PropertySpec));
+inline constexpr uint32_t ItemDestinationSize                          = static_cast<uint32_t>(sizeof(ItemDestination));
+inline constexpr uint32_t ItemDestinationRequiredSize                  = static_cast<uint32_t>(offsetof(ItemDestination, sharedStashPage));
+inline constexpr uint32_t ItemDestinationSharedStashPageFieldEnd       = static_cast<uint32_t>(offsetof(ItemDestination, sharedStashPage) + sizeof(uint32_t));
+inline constexpr uint32_t ItemCreateSpecSize                           = static_cast<uint32_t>(sizeof(ItemCreateSpec));
+inline constexpr uint32_t ItemCreateSpecRequiredSize                   = static_cast<uint32_t>(offsetof(ItemCreateSpec, destination) + ItemDestinationRequiredSize);
+inline constexpr uint32_t ItemCreateSpecSharedStashPageFieldEnd        = static_cast<uint32_t>(offsetof(ItemCreateSpec, destination) + ItemDestinationSharedStashPageFieldEnd);
+inline constexpr uint32_t ItemInfoSize                                 = static_cast<uint32_t>(sizeof(ItemInfo));
+inline constexpr uint32_t ItemInfoRequiredSize                         = ItemInfoSize;
+inline constexpr uint32_t ItemEditSize                                 = static_cast<uint32_t>(sizeof(ItemEdit));
+inline constexpr uint32_t ItemEditRequiredSize                         = ItemEditSize;
+inline constexpr uint32_t TransactionSize                              = static_cast<uint32_t>(sizeof(Transaction));
+inline constexpr uint32_t TransactionRequiredSize                      = TransactionSize;
+inline constexpr uint32_t TransactionResultSize                        = static_cast<uint32_t>(sizeof(TransactionResult));
+inline constexpr uint32_t TransactionResultRequiredSize                = TransactionResultSize;
+inline constexpr uint32_t ExistingItemOperationSize                    = static_cast<uint32_t>(sizeof(ExistingItemOperation));
+inline constexpr uint32_t ExistingItemOperationRequiredSize            = static_cast<uint32_t>(offsetof(ExistingItemOperation, move) + ItemDestinationRequiredSize);
+inline constexpr uint32_t ExistingItemOperationSharedStashPageFieldEnd = static_cast<uint32_t>(offsetof(ExistingItemOperation, move) + ItemDestinationSharedStashPageFieldEnd);
+inline constexpr uint32_t ExistingItemTransactionSize                  = static_cast<uint32_t>(sizeof(ExistingItemTransaction));
+inline constexpr uint32_t ExistingItemTransactionRequiredSize          = ExistingItemTransactionSize;
+inline constexpr uint32_t ExistingItemTransactionResultSize            = static_cast<uint32_t>(sizeof(ExistingItemTransactionResult));
+inline constexpr uint32_t ExistingItemTransactionResultRequiredSize    = ExistingItemTransactionResultSize;
+inline constexpr uint32_t SplitStackRequestSize                        = static_cast<uint32_t>(sizeof(SplitStackRequest));
+inline constexpr uint32_t SplitStackRequestRequiredSize                = SplitStackRequestSize;
+inline constexpr uint32_t SplitStackResultSize                         = static_cast<uint32_t>(sizeof(SplitStackResult));
+inline constexpr uint32_t SplitStackResultRequiredSize                 = SplitStackResultSize;
 
 using GetItemInfoFn                    = Result(__cdecl*)(const PluginContext* context, ItemHandle item, ItemInfo* info) noexcept;
 // Mutations require the authoritative game thread. Queue them with
@@ -396,6 +411,7 @@ using SplitStackFn                     = Result(__cdecl*)(const PluginContext* c
 using EditNativeItemFn                 = Result(__cdecl*)(const PluginContext* context, ItemHandle item, NativeItemEditCallback callback, void* userData) noexcept;
 
 static_assert(sizeof(Result) == sizeof(uint32_t));
+static_assert(sizeof(ItemServiceCapability) == sizeof(uint64_t));
 static_assert(sizeof(Quality) == sizeof(uint32_t));
 static_assert(sizeof(ItemContainer) == sizeof(uint32_t));
 static_assert(sizeof(Placement) == sizeof(uint32_t));
@@ -421,8 +437,12 @@ static_assert(std::is_standard_layout_v<ExistingItemTransactionResult> && std::i
 static_assert(std::is_standard_layout_v<SplitStackRequest> && std::is_trivially_copyable_v<SplitStackRequest>);
 static_assert(std::is_standard_layout_v<SplitStackResult> && std::is_trivially_copyable_v<SplitStackResult>);
 static_assert(sizeof(PropertySpec) == 16);
-static_assert(sizeof(ItemDestination) == 32);
-static_assert(sizeof(ItemCreateSpec) == 120);
+static_assert(ItemDestinationRequiredSize == 32);
+static_assert(ItemDestinationSharedStashPageFieldEnd == 36);
+static_assert(sizeof(ItemDestination) == 40);
+static_assert(ItemCreateSpecRequiredSize == 120);
+static_assert(ItemCreateSpecSharedStashPageFieldEnd == 124);
+static_assert(sizeof(ItemCreateSpec) == 128);
 static_assert(sizeof(ItemInfo) == 120);
 static_assert(sizeof(ItemEdit) == 32);
 static_assert(sizeof(TransactionInput) == 16);
@@ -434,10 +454,11 @@ static_assert(TransactionResultRequiredSize == 16);
 static_assert(sizeof(TransactionResult) == 16);
 static_assert(sizeof(ExistingItemDebit) == 8);
 static_assert(sizeof(ExistingItemEdit) == 16);
-static_assert(sizeof(ExistingItemMove) == 32);
+static_assert(sizeof(ExistingItemMove) == 40);
 static_assert(offsetof(ExistingItemOperation, item) == 16);
 static_assert(ExistingItemOperationRequiredSize == 56);
-static_assert(sizeof(ExistingItemOperation) == 56);
+static_assert(ExistingItemOperationSharedStashPageFieldEnd == 60);
+static_assert(sizeof(ExistingItemOperation) == 64);
 static_assert(offsetof(ExistingItemTransaction, operations) == 24);
 static_assert(ExistingItemTransactionRequiredSize == 32);
 static_assert(sizeof(ExistingItemTransaction) == 32);
@@ -468,14 +489,21 @@ struct ItemService {
 	Items::EditNativeItemFn                 editNativeItem;
 	Items::ExecuteExistingItemTransactionFn executeExistingItemTransaction;
 	Items::SplitStackFn                     splitStack;
+	// This field is optional. HasItemServiceCapability checks its size and bit.
+	uint64_t                                capabilities;
 };
 
-inline constexpr uint32_t ItemServiceSize               = static_cast<uint32_t>(sizeof(ItemService));
-inline constexpr uint32_t ItemServiceRequiredSize       = static_cast<uint32_t>(offsetof(ItemService, executeExistingItemTransaction) + sizeof(Items::ExecuteExistingItemTransactionFn));
-inline constexpr uint32_t ItemServiceSplitStackFieldEnd = static_cast<uint32_t>(offsetof(ItemService, splitStack) + sizeof(Items::SplitStackFn));
+inline constexpr uint32_t ItemServiceSize                 = static_cast<uint32_t>(sizeof(ItemService));
+inline constexpr uint32_t ItemServiceRequiredSize         = static_cast<uint32_t>(offsetof(ItemService, executeExistingItemTransaction) + sizeof(Items::ExecuteExistingItemTransactionFn));
+inline constexpr uint32_t ItemServiceSplitStackFieldEnd   = static_cast<uint32_t>(offsetof(ItemService, splitStack) + sizeof(Items::SplitStackFn));
+inline constexpr uint32_t ItemServiceCapabilitiesFieldEnd = static_cast<uint32_t>(offsetof(ItemService, capabilities) + sizeof(uint64_t));
 
-inline auto HasItemServiceField(const ItemService* service, uint32_t fieldEndOffset) noexcept -> bool {
+inline constexpr auto HasItemServiceField(const ItemService* service, uint32_t fieldEndOffset) noexcept -> bool {
 	return service != nullptr && service->serviceVersion == ItemService::AbiVersion && service->serviceSize >= fieldEndOffset;
+}
+
+inline constexpr auto HasItemServiceCapability(const ItemService* service, Items::ItemServiceCapability capability) noexcept -> bool {
+	return HasItemServiceField(service, ItemServiceCapabilitiesFieldEnd) && (service->capabilities & Items::ItemServiceCapabilityBit(capability)) != 0;
 }
 
 static_assert(std::is_standard_layout_v<ItemService>);
@@ -488,8 +516,10 @@ static_assert(offsetof(ItemService, executeTransaction) == 40);
 static_assert(offsetof(ItemService, editNativeItem) == 48);
 static_assert(offsetof(ItemService, executeExistingItemTransaction) == 56);
 static_assert(offsetof(ItemService, splitStack) == 64);
+static_assert(offsetof(ItemService, capabilities) == 72);
 static_assert(ItemServiceRequiredSize == 64);
 static_assert(ItemServiceSplitStackFieldEnd == 72);
-static_assert(sizeof(ItemService) == 72);
+static_assert(ItemServiceCapabilitiesFieldEnd == 80);
+static_assert(sizeof(ItemService) == 80);
 
 }

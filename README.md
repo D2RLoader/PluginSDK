@@ -723,8 +723,24 @@ player handle.
 level, a SetItems or UniqueItems row, up to three prefix and suffix ids,
 quantity, durability, sockets, identified or ethereal state, fixed seeds, and
 extra properties. It can place the item automatically or at an exact position
-in the inventory, cube, personal stash, custom page, cursor, or ground. An
-unsupported destination returns `Unsupported` before the item appears.
+in the inventory, cube, personal stash, shared stash, custom page, cursor, or
+ground. An unsupported destination returns `Unsupported` before the item
+appears. Outputs created by `executeTransaction` use the same destinations.
+
+Shared-stash writes are an optional feature. Check the capability before using
+them:
+
+```cpp
+const bool canWriteSharedStash = D2RL::HasItemServiceCapability(
+	items,
+	D2RL::Items::ItemServiceCapability::SharedStashWrite);
+```
+
+Set `sharedStashPage` to the normal tab number, starting at zero. For example,
+zero means the first normal shared-stash tab. The loader rejects remove-only
+tabs and tabs that are not active. Keep both `ItemCreateSpec::structSize` and
+`ItemDestination::structSize` set to their current `Size` constants when the
+destination is a shared-stash tab.
 
 Properties use the same format as cube recipes. `propertyId` is the numeric
 `*Id` from `Properties.txt`, not an `ItemStatCost.txt` stat id. `parameter` uses
@@ -765,30 +781,41 @@ native identity. Pass a tagged array of `Debit`, `Edit`, and `Move` operations.
 A debit must leave a positive quantity; use `executeTransaction` when an input
 should be consumed completely. Debits and edits accept stored or cursor items.
 Atomic edits cover durability, identified state, and item level. Atomic moves
-cover the normal inventory, Cube, personal stash,
-and the current custom page. Equipment, cursor, belt, shared-stash, trade,
-corpse, and ground moves are not accepted in V1.
+cover the normal inventory, Cube, personal stash, normal shared-stash tabs, and
+the current custom page. Equipment, cursor, belt, trade, corpse, and ground
+moves are not accepted. A batch may contain up to 4,096 operations.
 
 Every operation is validated before mutation. Moved items are removed from a
 temporary occupancy model first, so a single transaction can swap or chain
-their locations. If a native placement or postcondition fails, D2RLoader
-restores moved items and edited values. The handles, runtime ids, seeds, sockets,
-and unrelated item data stay intact. `failureIndex` identifies the rejected
-operation.
+their locations, including moves between shared-stash tabs. If a native
+placement or postcondition fails, D2RLoader restores every source and
+destination. The handles, runtime ids, seeds, sockets, and unrelated item data
+stay intact. `failureIndex` identifies the rejected operation.
 
 ```cpp
-D2RL::Items::ExistingItemOperation operations[2] {};
-operations[0].structSize     = D2RL::Items::ExistingItemOperationSize;
-operations[0].kind           = D2RL::Items::ExistingItemOperationKind::Debit;
-operations[0].item           = resourceStack;
-operations[0].debit.quantity = 1;
+if (!D2RL::HasItemServiceCapability(
+		items,
+		D2RL::Items::ItemServiceCapability::SharedStashWrite)) {
+	return;
+}
 
-operations[1].structSize                  = D2RL::Items::ExistingItemOperationSize;
-operations[1].kind                        = D2RL::Items::ExistingItemOperationKind::Move;
-operations[1].item                        = rewardItem;
-operations[1].move.destination.structSize = D2RL::Items::ItemDestinationSize;
-operations[1].move.destination.container  = D2RL::Items::ItemContainer::Cube;
-operations[1].move.destination.placement  = D2RL::Items::Placement::Automatic;
+D2RL::Items::ExistingItemOperation operations[2] {};
+auto& toShared = operations[0];
+toShared.structSize = D2RL::Items::ExistingItemOperationSize;
+toShared.kind = D2RL::Items::ExistingItemOperationKind::Move;
+toShared.item = inventoryItem;
+toShared.move.destination.structSize = D2RL::Items::ItemDestinationSize;
+toShared.move.destination.container = D2RL::Items::ItemContainer::SharedStash;
+toShared.move.destination.placement = D2RL::Items::Placement::Automatic;
+toShared.move.destination.sharedStashPage = 0; // First normal tab.
+
+auto& fromShared = operations[1];
+fromShared.structSize = D2RL::Items::ExistingItemOperationSize;
+fromShared.kind = D2RL::Items::ExistingItemOperationKind::Move;
+fromShared.item = sharedStashItem;
+fromShared.move.destination.structSize = D2RL::Items::ItemDestinationSize;
+fromShared.move.destination.container = D2RL::Items::ItemContainer::PersonalStash;
+fromShared.move.destination.placement = D2RL::Items::Placement::Automatic;
 
 const D2RL::Items::ExistingItemTransaction transaction {
 	.structSize     = D2RL::Items::ExistingItemTransactionSize,

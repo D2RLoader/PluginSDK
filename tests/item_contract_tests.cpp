@@ -45,13 +45,36 @@ static_assert(D2RL::Overlay::TextRequestRequiredSize == 64);
 static_assert(D2RL::OverlayServiceRequiredSize == 88);
 static_assert(D2RL::Diagnostics::ModificationRangeRequiredSize == 96);
 static_assert(D2RL::Items::ExistingItemOperationRequiredSize == 56);
+static_assert(D2RL::Items::ExistingItemOperationSize == 64);
 static_assert(D2RL::Items::ExistingItemTransactionRequiredSize == 32);
 static_assert(D2RL::Items::ExistingItemTransactionResultRequiredSize == 16);
 static_assert(D2RL::Items::SplitStackRequestRequiredSize == 32);
 static_assert(D2RL::Items::SplitStackResultRequiredSize == 24);
 static_assert(offsetof(D2RL::Items::SplitStackRequest, sourceItem) == 16);
 static_assert(offsetof(D2RL::Items::SplitStackResult, cursorItem) == 8);
-static_assert(D2RL::ItemServiceSize == 72);
+static_assert(D2RL::ItemServiceSize == 80);
+static_assert(D2RL::ItemServiceCapabilitiesFieldEnd == 80);
+static_assert(D2RL::Items::ItemDestinationRequiredSize == 32);
+static_assert(D2RL::Items::ItemDestinationSharedStashPageFieldEnd == 36);
+static_assert(D2RL::Items::ItemDestinationSize == 40);
+static_assert(D2RL::Items::ItemCreateSpecRequiredSize == 120);
+static_assert(D2RL::Items::ItemCreateSpecSharedStashPageFieldEnd == 124);
+static_assert(D2RL::Items::ItemCreateSpecSize == 128);
+static_assert(D2RL::Items::ExistingItemOperationSharedStashPageFieldEnd == 60);
+static_assert(D2RL::Items::MaxExistingItemOperations == 4'096);
+static_assert(D2RL::Items::ItemServiceCapabilityBit(D2RL::Items::ItemServiceCapability::SharedStashWrite) == 1ULL);
+inline constexpr D2RL::ItemService SharedStashItemService {
+	.serviceSize    = D2RL::ItemServiceSize,
+	.serviceVersion = D2RL::ItemService::AbiVersion,
+	.capabilities   = D2RL::Items::ItemServiceCapabilityBit(D2RL::Items::ItemServiceCapability::SharedStashWrite),
+};
+inline constexpr D2RL::ItemService LegacyItemService {
+	.serviceSize    = D2RL::ItemServiceSplitStackFieldEnd,
+	.serviceVersion = D2RL::ItemService::AbiVersion,
+	.capabilities   = D2RL::Items::ItemServiceCapabilityBit(D2RL::Items::ItemServiceCapability::SharedStashWrite),
+};
+static_assert(D2RL::HasItemServiceCapability(&SharedStashItemService, D2RL::Items::ItemServiceCapability::SharedStashWrite));
+static_assert(!D2RL::HasItemServiceCapability(&LegacyItemService, D2RL::Items::ItemServiceCapability::SharedStashWrite));
 static_assert(D2RL::HttpServiceRequiredSize == 24);
 static_assert(D2RL::Http::RequestRequiredSize == 56);
 static_assert(D2RL::Http::ResponseRequiredSize == 48);
