@@ -119,7 +119,7 @@ static_assert(offsetof(D2RL::InventoryService, getEquippedItem) == 96);
 static_assert(offsetof(D2RL::InventoryService, forEachInventoryItem) == 104);
 static_assert(D2RL::InventoryServiceRequiredSize == 112);
 
-static_assert(sizeof(D2RL::ItemService) == 80);
+static_assert(sizeof(D2RL::ItemService) == 88);
 static_assert(alignof(D2RL::ItemService) == 8);
 static_assert(static_cast<uint32_t>(D2RL::ItemService::Id) == 15);
 static_assert(D2RL::ItemService::AbiVersion == 1);
@@ -134,9 +134,11 @@ static_assert(offsetof(D2RL::ItemService, editNativeItem) == 48);
 static_assert(offsetof(D2RL::ItemService, executeExistingItemTransaction) == 56);
 static_assert(offsetof(D2RL::ItemService, splitStack) == 64);
 static_assert(offsetof(D2RL::ItemService, capabilities) == 72);
+static_assert(offsetof(D2RL::ItemService, augmentItemAffix) == 80);
 static_assert(D2RL::ItemServiceRequiredSize == 64);
 static_assert(D2RL::ItemServiceSplitStackFieldEnd == 72);
 static_assert(D2RL::ItemServiceCapabilitiesFieldEnd == 80);
+static_assert(D2RL::ItemServiceAffixAugmentFieldEnd == 88);
 
 static_assert(sizeof(D2RL::ItemInteractionService) == 32);
 static_assert(alignof(D2RL::ItemInteractionService) == 8);

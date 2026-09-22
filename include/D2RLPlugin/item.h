@@ -39,6 +39,7 @@ enum class Result : uint32_t {
 
 enum class ItemServiceCapability : uint64_t {
 	SharedStashWrite = 1ULL << 0U,
+	AffixAugment     = 1ULL << 1U,
 };
 
 constexpr auto ItemServiceCapabilityBit(ItemServiceCapability capability) noexcept -> uint64_t {
@@ -365,6 +366,77 @@ struct SplitStackResult {
 	uint32_t   reserved;
 };
 
+enum class AffixSelection : uint32_t {
+	RandomEligible = 0,
+	ExplicitId     = 1,
+};
+
+enum class AffixKind : uint32_t {
+	Either = 0,
+	Prefix = 1,
+	Suffix = 2,
+};
+
+enum class AffixAugmentFailure : uint32_t {
+	None              = 0,
+	InvalidRequest    = 1,
+	InvalidItem       = 2,
+	AtCapacity        = 3,
+	SideAtCapacity    = 4,
+	UnknownAffix      = 5,
+	IneligibleAffix   = 6,
+	NoEligibleAffix   = 7,
+	NativeApplyFailed = 8,
+	InvariantMismatch = 9,
+	PaymentFailed     = 10,
+	RollbackFailed    = 11,
+};
+
+// Adds one eligible prefix or suffix to an existing Magic or Rare item. RandomEligible
+// requires affixId 0 and accepts Either, Prefix, or Suffix. ExplicitId requires
+// a combined, one-based affix ID and an exact side. These IDs match ItemInfo.
+// A zero maximum uses the native limit. A smaller maximum lets a plugin apply
+// its own crafting rule. Magic items allow one prefix and one suffix. Rare
+// jewels have a native total limit of four; other Rare items have a limit of six.
+//
+// Leave paymentItem invalid and paymentQuantity zero for a free operation.
+// Otherwise, the payment must be a different item owned by the same player.
+// The target and payment must be in an inventory, Cube, personal stash, current
+// custom page, or on the cursor. Shared-stash items are not supported. The
+// service can consume part of a stack or the whole payment item.
+struct AffixAugmentRequest {
+	uint32_t       structSize;
+	uint32_t       flags;
+	PlayerHandle   player;
+	ItemHandle     item;
+	ItemHandle     paymentItem;
+	uint32_t       paymentQuantity;
+	AffixSelection selection;
+	AffixKind      kind;
+	uint32_t       affixId;
+	uint32_t       maxPrefixes;
+	uint32_t       maxSuffixes;
+	uint32_t       maxAffixes;
+	uint32_t       reserved;
+};
+
+// On success, appliedSlot is 0..2 and paymentConsumed is the amount removed.
+// On an ordinary failure, both items are unchanged. RollbackFailed means an
+// unexpected native error prevented that guarantee. D2RLoader then rejects
+// more affix changes until the next game session.
+struct AffixAugmentResult {
+	uint32_t            structSize;
+	uint32_t            flags;
+	AffixAugmentFailure failure;
+	AffixKind           appliedKind;
+	uint32_t            appliedAffixId;
+	uint32_t            appliedSlot;
+	uint32_t            affixesBefore;
+	uint32_t            affixesAfter;
+	uint32_t            paymentConsumed;
+	uint32_t            reserved;
+};
+
 using NativeItemEditCallback = void(__cdecl*)(const PluginContext* context, void* nativeItem, void* userData) noexcept;
 
 inline constexpr uint32_t PropertySpecSize                             = static_cast<uint32_t>(sizeof(PropertySpec));
@@ -393,6 +465,10 @@ inline constexpr uint32_t SplitStackRequestSize                        = static_
 inline constexpr uint32_t SplitStackRequestRequiredSize                = SplitStackRequestSize;
 inline constexpr uint32_t SplitStackResultSize                         = static_cast<uint32_t>(sizeof(SplitStackResult));
 inline constexpr uint32_t SplitStackResultRequiredSize                 = SplitStackResultSize;
+inline constexpr uint32_t AffixAugmentRequestSize                      = static_cast<uint32_t>(sizeof(AffixAugmentRequest));
+inline constexpr uint32_t AffixAugmentRequestRequiredSize              = AffixAugmentRequestSize;
+inline constexpr uint32_t AffixAugmentResultSize                       = static_cast<uint32_t>(sizeof(AffixAugmentResult));
+inline constexpr uint32_t AffixAugmentResultRequiredSize               = AffixAugmentResultSize;
 
 using GetItemInfoFn                    = Result(__cdecl*)(const PluginContext* context, ItemHandle item, ItemInfo* info) noexcept;
 // Mutations require the authoritative game thread. Queue them with
@@ -405,6 +481,7 @@ using DestroyItemFn                    = Result(__cdecl*)(const PluginContext* c
 using ExecuteTransactionFn             = Result(__cdecl*)(const PluginContext* context, const Transaction* transaction, TransactionResult* result) noexcept;
 using ExecuteExistingItemTransactionFn = Result(__cdecl*)(const PluginContext* context, const ExistingItemTransaction* transaction, ExistingItemTransactionResult* result) noexcept;
 using SplitStackFn                     = Result(__cdecl*)(const PluginContext* context, const SplitStackRequest* request, SplitStackResult* result) noexcept;
+using AugmentItemAffixFn               = Result(__cdecl*)(const PluginContext* context, const AffixAugmentRequest* request, AffixAugmentResult* result) noexcept;
 // Raw-pointer escape hatch. This requires PluginFlags::NativeHooks and the game
 // thread. The pointer expires when the synchronous callback returns. D2RLoader
 // does not validate or publish changes made through it.
@@ -420,6 +497,9 @@ static_assert(sizeof(ItemCreateFlag) == sizeof(uint32_t));
 static_assert(sizeof(SocketedItemPolicy) == sizeof(uint32_t));
 static_assert(sizeof(EditField) == sizeof(uint32_t));
 static_assert(sizeof(ExistingItemOperationKind) == sizeof(uint32_t));
+static_assert(sizeof(AffixSelection) == sizeof(uint32_t));
+static_assert(sizeof(AffixKind) == sizeof(uint32_t));
+static_assert(sizeof(AffixAugmentFailure) == sizeof(uint32_t));
 static_assert(std::is_standard_layout_v<PropertySpec> && std::is_trivially_copyable_v<PropertySpec>);
 static_assert(std::is_standard_layout_v<ItemDestination> && std::is_trivially_copyable_v<ItemDestination>);
 static_assert(std::is_standard_layout_v<ItemCreateSpec> && std::is_trivially_copyable_v<ItemCreateSpec>);
@@ -436,6 +516,8 @@ static_assert(std::is_standard_layout_v<ExistingItemTransaction> && std::is_triv
 static_assert(std::is_standard_layout_v<ExistingItemTransactionResult> && std::is_trivially_copyable_v<ExistingItemTransactionResult>);
 static_assert(std::is_standard_layout_v<SplitStackRequest> && std::is_trivially_copyable_v<SplitStackRequest>);
 static_assert(std::is_standard_layout_v<SplitStackResult> && std::is_trivially_copyable_v<SplitStackResult>);
+static_assert(std::is_standard_layout_v<AffixAugmentRequest> && std::is_trivially_copyable_v<AffixAugmentRequest>);
+static_assert(std::is_standard_layout_v<AffixAugmentResult> && std::is_trivially_copyable_v<AffixAugmentResult>);
 static_assert(sizeof(PropertySpec) == 16);
 static_assert(ItemDestinationRequiredSize == 32);
 static_assert(ItemDestinationSharedStashPageFieldEnd == 36);
@@ -471,6 +553,8 @@ static_assert(sizeof(SplitStackRequest) == 32);
 static_assert(offsetof(SplitStackResult, cursorItem) == 8);
 static_assert(SplitStackResultRequiredSize == 24);
 static_assert(sizeof(SplitStackResult) == 24);
+static_assert(sizeof(AffixAugmentRequest) == 64);
+static_assert(sizeof(AffixAugmentResult) == 40);
 static_assert(MakeItemCode("r01") == MakeItemCode('r', '0', '1', ' '));
 
 }
@@ -491,12 +575,14 @@ struct ItemService {
 	Items::SplitStackFn                     splitStack;
 	// This field is optional. HasItemServiceCapability checks its size and bit.
 	uint64_t                                capabilities;
+	Items::AugmentItemAffixFn               augmentItemAffix;
 };
 
 inline constexpr uint32_t ItemServiceSize                 = static_cast<uint32_t>(sizeof(ItemService));
 inline constexpr uint32_t ItemServiceRequiredSize         = static_cast<uint32_t>(offsetof(ItemService, executeExistingItemTransaction) + sizeof(Items::ExecuteExistingItemTransactionFn));
 inline constexpr uint32_t ItemServiceSplitStackFieldEnd   = static_cast<uint32_t>(offsetof(ItemService, splitStack) + sizeof(Items::SplitStackFn));
 inline constexpr uint32_t ItemServiceCapabilitiesFieldEnd = static_cast<uint32_t>(offsetof(ItemService, capabilities) + sizeof(uint64_t));
+inline constexpr uint32_t ItemServiceAffixAugmentFieldEnd = static_cast<uint32_t>(offsetof(ItemService, augmentItemAffix) + sizeof(Items::AugmentItemAffixFn));
 
 inline constexpr auto HasItemServiceField(const ItemService* service, uint32_t fieldEndOffset) noexcept -> bool {
 	return service != nullptr && service->serviceVersion == ItemService::AbiVersion && service->serviceSize >= fieldEndOffset;
@@ -517,9 +603,11 @@ static_assert(offsetof(ItemService, editNativeItem) == 48);
 static_assert(offsetof(ItemService, executeExistingItemTransaction) == 56);
 static_assert(offsetof(ItemService, splitStack) == 64);
 static_assert(offsetof(ItemService, capabilities) == 72);
+static_assert(offsetof(ItemService, augmentItemAffix) == 80);
 static_assert(ItemServiceRequiredSize == 64);
 static_assert(ItemServiceSplitStackFieldEnd == 72);
 static_assert(ItemServiceCapabilitiesFieldEnd == 80);
-static_assert(sizeof(ItemService) == 80);
+static_assert(ItemServiceAffixAugmentFieldEnd == 88);
+static_assert(sizeof(ItemService) == 88);
 
 }

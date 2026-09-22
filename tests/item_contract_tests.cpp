@@ -52,8 +52,14 @@ static_assert(D2RL::Items::SplitStackRequestRequiredSize == 32);
 static_assert(D2RL::Items::SplitStackResultRequiredSize == 24);
 static_assert(offsetof(D2RL::Items::SplitStackRequest, sourceItem) == 16);
 static_assert(offsetof(D2RL::Items::SplitStackResult, cursorItem) == 8);
-static_assert(D2RL::ItemServiceSize == 80);
+static_assert(D2RL::Items::AffixAugmentRequestRequiredSize == 64);
+static_assert(D2RL::Items::AffixAugmentResultRequiredSize == 40);
+static_assert(offsetof(D2RL::Items::AffixAugmentRequest, paymentItem) == 24);
+static_assert(offsetof(D2RL::Items::AffixAugmentRequest, affixId) == 44);
+static_assert(offsetof(D2RL::Items::AffixAugmentResult, appliedAffixId) == 16);
+static_assert(D2RL::ItemServiceSize == 88);
 static_assert(D2RL::ItemServiceCapabilitiesFieldEnd == 80);
+static_assert(D2RL::ItemServiceAffixAugmentFieldEnd == 88);
 static_assert(D2RL::Items::ItemDestinationRequiredSize == 32);
 static_assert(D2RL::Items::ItemDestinationSharedStashPageFieldEnd == 36);
 static_assert(D2RL::Items::ItemDestinationSize == 40);
@@ -63,18 +69,28 @@ static_assert(D2RL::Items::ItemCreateSpecSize == 128);
 static_assert(D2RL::Items::ExistingItemOperationSharedStashPageFieldEnd == 60);
 static_assert(D2RL::Items::MaxExistingItemOperations == 4'096);
 static_assert(D2RL::Items::ItemServiceCapabilityBit(D2RL::Items::ItemServiceCapability::SharedStashWrite) == 1ULL);
-inline constexpr D2RL::ItemService SharedStashItemService {
+static_assert(D2RL::Items::ItemServiceCapabilityBit(D2RL::Items::ItemServiceCapability::AffixAugment) == 2ULL);
+inline constexpr D2RL::ItemService CurrentItemService {
 	.serviceSize    = D2RL::ItemServiceSize,
 	.serviceVersion = D2RL::ItemService::AbiVersion,
-	.capabilities   = D2RL::Items::ItemServiceCapabilityBit(D2RL::Items::ItemServiceCapability::SharedStashWrite),
+	.capabilities
+	= D2RL::Items::ItemServiceCapabilityBit(D2RL::Items::ItemServiceCapability::SharedStashWrite) | D2RL::Items::ItemServiceCapabilityBit(D2RL::Items::ItemServiceCapability::AffixAugment),
 };
 inline constexpr D2RL::ItemService LegacyItemService {
 	.serviceSize    = D2RL::ItemServiceSplitStackFieldEnd,
 	.serviceVersion = D2RL::ItemService::AbiVersion,
 	.capabilities   = D2RL::Items::ItemServiceCapabilityBit(D2RL::Items::ItemServiceCapability::SharedStashWrite),
 };
-static_assert(D2RL::HasItemServiceCapability(&SharedStashItemService, D2RL::Items::ItemServiceCapability::SharedStashWrite));
+static_assert(D2RL::HasItemServiceCapability(&CurrentItemService, D2RL::Items::ItemServiceCapability::SharedStashWrite));
+static_assert(D2RL::HasItemServiceCapability(&CurrentItemService, D2RL::Items::ItemServiceCapability::AffixAugment));
 static_assert(!D2RL::HasItemServiceCapability(&LegacyItemService, D2RL::Items::ItemServiceCapability::SharedStashWrite));
+static_assert(!D2RL::HasItemServiceCapability(&LegacyItemService, D2RL::Items::ItemServiceCapability::AffixAugment));
+static_assert(static_cast<uint32_t>(D2RL::Items::AffixSelection::RandomEligible) == 0);
+static_assert(static_cast<uint32_t>(D2RL::Items::AffixSelection::ExplicitId) == 1);
+static_assert(static_cast<uint32_t>(D2RL::Items::AffixKind::Either) == 0);
+static_assert(static_cast<uint32_t>(D2RL::Items::AffixKind::Prefix) == 1);
+static_assert(static_cast<uint32_t>(D2RL::Items::AffixKind::Suffix) == 2);
+static_assert(static_cast<uint32_t>(D2RL::Items::AffixAugmentFailure::RollbackFailed) == 11);
 static_assert(D2RL::HttpServiceRequiredSize == 24);
 static_assert(D2RL::Http::RequestRequiredSize == 56);
 static_assert(D2RL::Http::ResponseRequiredSize == 48);

@@ -853,6 +853,60 @@ if (D2RL::HasItemServiceField(items, D2RL::ItemServiceSplitStackFieldEnd)) {
 }
 ```
 
+`augmentItemAffix` adds one eligible prefix or suffix to an existing Magic or
+Rare item. The item keeps its handle, saved identity, and random seeds. The
+target and an optional payment item must be in an inventory, Cube, personal
+stash, current custom page, or on the cursor. Shared-stash items are not
+supported. The payment can be part of a stack or the whole item.
+
+This function is also optional. Check its field and capability before calling
+it:
+
+```cpp
+const bool canAddAffix = D2RL::HasItemServiceField(
+	items,
+	D2RL::ItemServiceAffixAugmentFieldEnd)
+	&& D2RL::HasItemServiceCapability(
+		items,
+		D2RL::Items::ItemServiceCapability::AffixAugment);
+if (!canAddAffix) {
+	return;
+}
+
+const D2RL::Items::AffixAugmentRequest request {
+	.structSize      = D2RL::Items::AffixAugmentRequestSize,
+	.player          = player,
+	.item            = targetItem,
+	.paymentItem     = currencyItem,
+	.paymentQuantity = 1,
+	.selection       = D2RL::Items::AffixSelection::RandomEligible,
+	.kind            = D2RL::Items::AffixKind::Either,
+};
+D2RL::Items::AffixAugmentResult result {
+	.structSize = D2RL::Items::AffixAugmentResultSize,
+};
+const auto status = items->augmentItemAffix(context, &request, &result);
+if (status == D2RL::Items::Result::Success) {
+	// result.appliedKind, result.appliedAffixId, and result.appliedSlot describe it.
+}
+```
+
+`RandomEligible` requires `affixId` to be zero. It can choose either side, or
+you can request only a prefix or suffix. `ExplicitId` requires that exact side
+and a nonzero combined affix ID. Combined IDs use the same numbering as
+`ItemInfo`: MagicSuffix rows first, then MagicPrefix rows.
+
+Set `maxPrefixes`, `maxSuffixes`, and `maxAffixes` to zero to use D2R's normal
+limits. A plugin can set smaller values for its own crafting rule. Magic items
+allow one prefix and one suffix. Rare items allow three of each, with six in
+total. Rare jewels keep their native total limit of four.
+
+For a free operation, leave `paymentItem` invalid and `paymentQuantity` zero.
+On an ordinary failure, the target and payment stay unchanged. Check
+`result.failure` for the specific reason. `RollbackFailed` means a native error
+made the final state uncertain. Do not retry affix changes in that game session;
+D2RLoader blocks them until the next session as a safety measure.
+
 `editNativeItem` is for changes V1 cannot describe. It requires
 `PluginFlags::NativeHooks` and gives a native pointer to a game callback. The
 pointer expires when the callback returns. D2RLoader does not check or publish
