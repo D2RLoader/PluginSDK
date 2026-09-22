@@ -55,6 +55,7 @@ the map:
 | `threads.h` | Queue one task for the UI or the game. |
 | `localization.h` | Copied active UTF-8 text by id or key. |
 | `overlay.h` | Display-only lines, rectangles, and text drawn after the game UI. |
+| `plugin_communication.h` | Versioned services and named events shared between plugins. |
 | `core_exports.h` | Advanced D2RCore functions at ordinals 1-99. |
 | `reimplementation_exports.h` | Advanced game functions using raw objects at ordinals 2000-2999. |
 
@@ -364,6 +365,101 @@ D2RLoader owns service tables. Do not change or free them. Pass your
 `PluginContext` to calls that need an owner. You can still query services while
 the plugin unloads so you can remove registrations, but you cannot add new live
 state after unloading begins.
+
+### Communication Between Plugins
+
+`PluginCommunicationService` lets one plugin offer a small function table to
+another plugin. A function table is a struct containing function pointers. This
+avoids direct DLL imports and `GetProcAddress`. D2RLoader checks the provider,
+version, and table size before returning the table.
+
+A service is identified by its provider plugin ID and a short service name.
+Names use lowercase letters, numbers, `.`, `_`, or `-`. They cannot start or end
+with a separator. Each name may contain up to 127 bytes.
+
+This provider publishes a price lookup table:
+
+```cpp
+struct PriceService {
+	using GetPriceFn = int32_t(__cdecl*)(const char* itemCode) noexcept;
+
+	uint32_t   serviceSize;
+	uint32_t   serviceVersion;
+	GetPriceFn getPrice;
+};
+
+static auto __cdecl GetPrice(const char* itemCode) noexcept -> int32_t {
+	// A real plugin can look up itemCode in its own data.
+	return itemCode != nullptr ? 100 : 0;
+}
+
+static const PriceService prices {
+	.serviceSize    = sizeof(PriceService),
+	.serviceVersion = 1,
+	.getPrice       = GetPrice,
+};
+
+static bool PublishPrices(const D2RL::PluginContext* context) noexcept {
+	const D2RL::PluginCommunicationService* communication = nullptr;
+	if (context->QueryService(&communication) != D2RL::ServiceQueryResult::Success
+		|| !D2RL::HasPluginCommunicationServiceField(communication, D2RL::PluginCommunicationServiceRequiredSize)) {
+		return false;
+	}
+
+	const D2RL::PluginCommunication::PublishServiceRequest request {
+		.structSize     = D2RL::PluginCommunication::PublishServiceRequestSize,
+		.name           = "price-api",
+		.serviceVersion = 1,
+		.tableSize      = sizeof(prices),
+		.table          = &prices,
+	};
+	return communication->publishService(context, &request)
+		== D2RL::PluginCommunication::Result::Success;
+}
+```
+
+If that provider's plugin ID is `example.prices`, a consumer can acquire it:
+
+```cpp
+static D2RL::PluginCommunication::ServiceLease<PriceService> priceLease;
+
+static bool FindPrices(const D2RL::PluginContext* context) noexcept {
+	const D2RL::PluginCommunicationService* communication = nullptr;
+	if (context->QueryService(&communication) != D2RL::ServiceQueryResult::Success
+		|| !D2RL::HasPluginCommunicationServiceField(communication, D2RL::PluginCommunicationServiceRequiredSize)) {
+		return false;
+	}
+
+	return D2RL::PluginCommunication::Acquire(
+		context,
+		communication,
+		"example.prices",
+		"price-api",
+		1,
+		sizeof(PriceService),
+		&priceLease) == D2RL::PluginCommunication::Result::Success;
+}
+```
+
+Keep the lease while using the table. Its destructor releases the handle. The
+loader also releases forgotten handles when the consumer unloads. A newer
+service version must keep the older fields and add new fields at the end. Use a
+new service name when compatibility cannot be kept. Calls through the table run
+on the consumer's calling thread. The provider must document which threads its
+functions support.
+
+Held handles also define unload order. Consumers unload before their providers.
+The loader rejects an acquisition that would create a circular dependency. For
+example, if plugin B holds a service from plugin A, plugin A cannot also acquire
+a service from plugin B until B releases its first handle.
+
+The same API supports named events. A plugin may subscribe before the publisher
+loads. `publishEvent` copies up to 1 MiB of data, then runs matching callbacks in
+subscription order on the publishing thread. The event pointers are valid only
+until the callback returns. Keep callbacks short. Use `ThreadService` if the
+work must run on the UI or game thread. If a callback fails, D2RLoader stops
+that subscriber's callbacks and continues with other plugins. Event versions
+follow the same compatibility rule as service versions.
 
 ### Display-only Overlays
 

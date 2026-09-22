@@ -24,6 +24,7 @@
 #include <D2RLPlugin/overlay.h>
 #include <D2RLPlugin/panels.h>
 #include <D2RLPlugin/patching.h>
+#include <D2RLPlugin/plugin_communication.h>
 #include <D2RLPlugin/reimplementation_exports.h>
 #include <D2RLPlugin/resource.h>
 #include <D2RLPlugin/resources.h>

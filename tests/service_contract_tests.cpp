@@ -1,6 +1,8 @@
 #include <D2RLPlugin/api.h>
 #include <array>
 #include <cstdio>
+#include <cstring>
+#include <utility>
 
 // Service IDs and field layouts shared with plugin DLLs.
 static_assert(sizeof(D2RL::CustomTableService) == 40);
@@ -178,6 +180,26 @@ static_assert(offsetof(D2RL::OverlayService, measureText) == 64);
 static_assert(offsetof(D2RL::OverlayService, pushClip) == 72);
 static_assert(offsetof(D2RL::OverlayService, popClip) == 80);
 static_assert(D2RL::OverlayServiceRequiredSize == 88);
+
+static_assert(sizeof(D2RL::PluginCommunicationService) == 56);
+static_assert(alignof(D2RL::PluginCommunicationService) == 8);
+static_assert(static_cast<uint32_t>(D2RL::PluginCommunicationService::Id) == 21);
+static_assert(D2RL::PluginCommunicationService::AbiVersion == 1);
+static_assert(offsetof(D2RL::PluginCommunicationService, serviceSize) == 0);
+static_assert(offsetof(D2RL::PluginCommunicationService, serviceVersion) == 4);
+static_assert(offsetof(D2RL::PluginCommunicationService, publishService) == 8);
+static_assert(offsetof(D2RL::PluginCommunicationService, acquireService) == 16);
+static_assert(offsetof(D2RL::PluginCommunicationService, releaseService) == 24);
+static_assert(offsetof(D2RL::PluginCommunicationService, subscribeEvent) == 32);
+static_assert(offsetof(D2RL::PluginCommunicationService, unsubscribeEvent) == 40);
+static_assert(offsetof(D2RL::PluginCommunicationService, publishEvent) == 48);
+static_assert(D2RL::PluginCommunicationServiceRequiredSize == 56);
+static_assert(sizeof(D2RL::PluginCommunication::PublishServiceRequest) == 32);
+static_assert(sizeof(D2RL::PluginCommunication::AcquireServiceRequest) == 32);
+static_assert(sizeof(D2RL::PluginCommunication::AcquiredService) == 32);
+static_assert(sizeof(D2RL::PluginCommunication::PublishEventRequest) == 32);
+static_assert(sizeof(D2RL::PluginCommunication::EventView) == 40);
+static_assert(sizeof(D2RL::PluginCommunication::EventSubscription) == 48);
 static_assert(sizeof(D2RL::Overlay::Frame) == 40);
 static_assert(sizeof(D2RL::Overlay::CallbackRegistration) == 32);
 static_assert(sizeof(D2RL::Overlay::Metrics) == 32);
@@ -419,6 +441,56 @@ static void TestRawQuery() {
 	Check(result == D2RL::ServiceQueryResult::Success && service == &table, "Raw free query accepts numeric ID and version");
 }
 
+struct SharedPriceTable {
+	uint32_t value;
+};
+
+static SharedPriceTable priceTable { .value = 42 };
+static uint32_t         priceReleases = 0;
+
+static auto __cdecl AcquirePriceService(const D2RL::PluginContext*, const D2RL::PluginCommunication::AcquireServiceRequest* request, D2RL::PluginCommunication::AcquiredService* acquired) noexcept
+	-> D2RL::PluginCommunication::Result {
+	Check(std::strcmp(request->providerPluginId, "example.prices") == 0, "The lease helper forwards the provider ID");
+	Check(std::strcmp(request->name, "price-api") == 0, "The lease helper forwards the service name");
+	Check(request->minimumVersion == 1 && request->minimumTableSize == sizeof(SharedPriceTable), "The lease helper forwards version and size requirements");
+	*acquired = {
+		.structSize     = D2RL::PluginCommunication::AcquiredServiceSize,
+		.handle         = 10,
+		.table          = &priceTable,
+		.serviceVersion = 2,
+		.tableSize      = sizeof(priceTable),
+	};
+	return D2RL::PluginCommunication::Result::Success;
+}
+
+static auto __cdecl ReleasePriceService(const D2RL::PluginContext*, D2RL::PluginCommunication::ServiceHandle handle) noexcept -> D2RL::PluginCommunication::Result {
+	Check(handle == 10, "The lease helper releases the acquired handle");
+	++priceReleases;
+	return D2RL::PluginCommunication::Result::Success;
+}
+
+static void TestPluginServiceLease() {
+	D2RL::PluginContext                    context {};
+	const D2RL::PluginCommunicationService communication {
+		.serviceSize    = D2RL::PluginCommunicationServiceSize,
+		.serviceVersion = D2RL::PluginCommunicationService::AbiVersion,
+		.acquireService = AcquirePriceService,
+		.releaseService = ReleasePriceService,
+	};
+
+	priceReleases = 0;
+	{
+		D2RL::PluginCommunication::ServiceLease<SharedPriceTable> lease;
+		const auto result = D2RL::PluginCommunication::Acquire(&context, &communication, "example.prices", "price-api", 1, sizeof(SharedPriceTable), &lease);
+		Check(result == D2RL::PluginCommunication::Result::Success, "The lease helper acquires a compatible plugin service");
+		Check(lease && lease->value == 42 && lease.Version() == 2 && lease.Size() == sizeof(priceTable), "The lease exposes the table, version, and size");
+
+		D2RL::PluginCommunication::ServiceLease<SharedPriceTable> moved(std::move(lease));
+		Check(!lease && moved, "Moving a lease transfers its handle");
+	}
+	Check(priceReleases == 1, "Destroying the lease releases its handle once");
+}
+
 auto main() -> int {
 	TestService<D2RL::CustomTableService>(3);
 	TestService<D2RL::DataTableService>(8);
@@ -434,11 +506,13 @@ auto main() -> int {
 	TestService<D2RL::LocalizationService>(14);
 	TestService<D2RL::NetworkService>(6);
 	TestService<D2RL::OverlayService>(20);
+	TestService<D2RL::PluginCommunicationService>(21);
 	TestService<D2RL::PanelService>(4);
 	TestService<D2RL::ResourceService>(2);
 	TestService<D2RL::SharedEventService>(9);
 	TestService<D2RL::ThreadService>(13);
 	TestService<D2RL::WidgetService>(12);
 	TestRawQuery();
+	TestPluginServiceLease();
 	return failures == 0 ? 0 : 1;
 }
