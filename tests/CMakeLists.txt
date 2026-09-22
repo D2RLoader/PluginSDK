@@ -1,8 +1,8 @@
 set(D2RLPLUGIN_PUBLIC_HEADERS
 	api console context core_exports custom_tables data_tables diagnostics encounters
 	game_rules handles hooks http input inventory item item_interactions lifecycle lifecycle_events
-	localization logging network panels patching reimplementation_exports
-	resource resources services shared_events threads version widgets
+	localization logging mutations network panels patching reimplementation_exports
+	overlay resource resources services shared_events threads version widgets
 )
 set(D2RLPLUGIN_HEADER_TEST_SOURCES)
 set(D2RLPLUGIN_HEADER_TEST_DIR "${CMAKE_CURRENT_BINARY_DIR}/header-tests")

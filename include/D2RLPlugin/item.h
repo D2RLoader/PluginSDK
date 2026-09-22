@@ -331,6 +331,28 @@ struct ExistingItemTransactionResult {
 	uint32_t failureIndex;
 };
 
+// Splits quantity from one stored stack and puts the new stack on the cursor.
+// The source keeps its handle and saved identity. The cursor must be empty,
+// and quantity must leave at least one item in the source stack.
+struct SplitStackRequest {
+	uint32_t     structSize;
+	uint32_t     flags;
+	PlayerHandle player;
+	ItemHandle   sourceItem;
+	uint32_t     quantity;
+	uint32_t     reserved;
+};
+
+// cursorItem is the new stack. remainingQuantity is the source stack's new
+// quantity. Both values are cleared when the split fails.
+struct SplitStackResult {
+	uint32_t   structSize;
+	uint32_t   flags;
+	ItemHandle cursorItem;
+	uint32_t   remainingQuantity;
+	uint32_t   reserved;
+};
+
 using NativeItemEditCallback = void(__cdecl*)(const PluginContext* context, void* nativeItem, void* userData) noexcept;
 
 inline constexpr uint32_t PropertySpecSize                          = static_cast<uint32_t>(sizeof(PropertySpec));
@@ -352,6 +374,10 @@ inline constexpr uint32_t ExistingItemTransactionSize               = static_cas
 inline constexpr uint32_t ExistingItemTransactionRequiredSize       = ExistingItemTransactionSize;
 inline constexpr uint32_t ExistingItemTransactionResultSize         = static_cast<uint32_t>(sizeof(ExistingItemTransactionResult));
 inline constexpr uint32_t ExistingItemTransactionResultRequiredSize = ExistingItemTransactionResultSize;
+inline constexpr uint32_t SplitStackRequestSize                     = static_cast<uint32_t>(sizeof(SplitStackRequest));
+inline constexpr uint32_t SplitStackRequestRequiredSize             = SplitStackRequestSize;
+inline constexpr uint32_t SplitStackResultSize                      = static_cast<uint32_t>(sizeof(SplitStackResult));
+inline constexpr uint32_t SplitStackResultRequiredSize              = SplitStackResultSize;
 
 using GetItemInfoFn                    = Result(__cdecl*)(const PluginContext* context, ItemHandle item, ItemInfo* info) noexcept;
 // Mutations require the authoritative game thread. Queue them with
@@ -363,6 +389,7 @@ using EditItemFn                       = Result(__cdecl*)(const PluginContext* c
 using DestroyItemFn                    = Result(__cdecl*)(const PluginContext* context, PlayerHandle player, ItemHandle item, SocketedItemPolicy socketedItemPolicy) noexcept;
 using ExecuteTransactionFn             = Result(__cdecl*)(const PluginContext* context, const Transaction* transaction, TransactionResult* result) noexcept;
 using ExecuteExistingItemTransactionFn = Result(__cdecl*)(const PluginContext* context, const ExistingItemTransaction* transaction, ExistingItemTransactionResult* result) noexcept;
+using SplitStackFn                     = Result(__cdecl*)(const PluginContext* context, const SplitStackRequest* request, SplitStackResult* result) noexcept;
 // Raw-pointer escape hatch. This requires PluginFlags::NativeHooks and the game
 // thread. The pointer expires when the synchronous callback returns. D2RLoader
 // does not validate or publish changes made through it.
@@ -391,6 +418,8 @@ static_assert(std::is_standard_layout_v<ExistingItemMove> && std::is_trivially_c
 static_assert(std::is_standard_layout_v<ExistingItemOperation> && std::is_trivially_copyable_v<ExistingItemOperation>);
 static_assert(std::is_standard_layout_v<ExistingItemTransaction> && std::is_trivially_copyable_v<ExistingItemTransaction>);
 static_assert(std::is_standard_layout_v<ExistingItemTransactionResult> && std::is_trivially_copyable_v<ExistingItemTransactionResult>);
+static_assert(std::is_standard_layout_v<SplitStackRequest> && std::is_trivially_copyable_v<SplitStackRequest>);
+static_assert(std::is_standard_layout_v<SplitStackResult> && std::is_trivially_copyable_v<SplitStackResult>);
 static_assert(sizeof(PropertySpec) == 16);
 static_assert(sizeof(ItemDestination) == 32);
 static_assert(sizeof(ItemCreateSpec) == 120);
@@ -414,6 +443,13 @@ static_assert(ExistingItemTransactionRequiredSize == 32);
 static_assert(sizeof(ExistingItemTransaction) == 32);
 static_assert(ExistingItemTransactionResultRequiredSize == 16);
 static_assert(sizeof(ExistingItemTransactionResult) == 16);
+static_assert(offsetof(SplitStackRequest, player) == 8);
+static_assert(offsetof(SplitStackRequest, sourceItem) == 16);
+static_assert(SplitStackRequestRequiredSize == 32);
+static_assert(sizeof(SplitStackRequest) == 32);
+static_assert(offsetof(SplitStackResult, cursorItem) == 8);
+static_assert(SplitStackResultRequiredSize == 24);
+static_assert(sizeof(SplitStackResult) == 24);
 static_assert(MakeItemCode("r01") == MakeItemCode('r', '0', '1', ' '));
 
 }
@@ -431,10 +467,12 @@ struct ItemService {
 	Items::ExecuteTransactionFn             executeTransaction;
 	Items::EditNativeItemFn                 editNativeItem;
 	Items::ExecuteExistingItemTransactionFn executeExistingItemTransaction;
+	Items::SplitStackFn                     splitStack;
 };
 
-inline constexpr uint32_t ItemServiceSize         = static_cast<uint32_t>(sizeof(ItemService));
-inline constexpr uint32_t ItemServiceRequiredSize = ItemServiceSize;
+inline constexpr uint32_t ItemServiceSize               = static_cast<uint32_t>(sizeof(ItemService));
+inline constexpr uint32_t ItemServiceRequiredSize       = static_cast<uint32_t>(offsetof(ItemService, executeExistingItemTransaction) + sizeof(Items::ExecuteExistingItemTransactionFn));
+inline constexpr uint32_t ItemServiceSplitStackFieldEnd = static_cast<uint32_t>(offsetof(ItemService, splitStack) + sizeof(Items::SplitStackFn));
 
 inline auto HasItemServiceField(const ItemService* service, uint32_t fieldEndOffset) noexcept -> bool {
 	return service != nullptr && service->serviceVersion == ItemService::AbiVersion && service->serviceSize >= fieldEndOffset;
@@ -449,7 +487,9 @@ static_assert(offsetof(ItemService, destroyItem) == 32);
 static_assert(offsetof(ItemService, executeTransaction) == 40);
 static_assert(offsetof(ItemService, editNativeItem) == 48);
 static_assert(offsetof(ItemService, executeExistingItemTransaction) == 56);
+static_assert(offsetof(ItemService, splitStack) == 64);
 static_assert(ItemServiceRequiredSize == 64);
-static_assert(sizeof(ItemService) == 64);
+static_assert(ItemServiceSplitStackFieldEnd == 72);
+static_assert(sizeof(ItemService) == 72);
 
 }

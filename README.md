@@ -54,6 +54,7 @@ the map:
 | `http.h` | Asynchronous HTTPS requests with copied inputs and bounded responses. |
 | `threads.h` | Queue one task for the UI or the game. |
 | `localization.h` | Copied active UTF-8 text by id or key. |
+| `overlay.h` | Display-only lines, rectangles, and text drawn after the game UI. |
 | `core_exports.h` | Advanced D2RCore functions at ordinals 1-99. |
 | `reimplementation_exports.h` | Advanced game functions using raw objects at ordinals 2000-2999. |
 
@@ -364,6 +365,60 @@ D2RLoader owns service tables. Do not change or free them. Pass your
 the plugin unloads so you can remove registrations, but you cannot add new live
 state after unloading begins.
 
+### Display-only Overlays
+
+`OverlayService` draws simple information after the normal game UI. The loader
+decides when drawing runs and owns the drawing state. A plugin receives a
+canvas handle instead of low-level ImGui, DirectX, or graphics device pointers.
+
+Register a frame callback while the plugin loads. Drawing calls are valid only
+inside that callback and on the same thread. Coordinates start at the top-left
+corner of the screen. Colors use values from `0.0` to `1.0` for red, green,
+blue, and alpha.
+
+```cpp
+static const D2RL::OverlayService* overlay = nullptr;
+
+static void __cdecl DrawOverlay(
+	const D2RL::PluginContext* context,
+	const D2RL::Overlay::Frame* frame,
+	void*) noexcept {
+	const D2RL::Overlay::LineRequest line {
+		.structSize = D2RL::Overlay::LineRequestSize,
+		.canvas     = frame->canvas,
+		.start      = { 20.0F, 20.0F },
+		.end        = { 220.0F, 20.0F },
+		.color      = { 1.0F, 0.8F, 0.2F, 1.0F },
+		.thickness  = 2.0F,
+	};
+	(void)overlay->drawLine(context, &line);
+}
+
+static bool RegisterOverlay(const D2RL::PluginContext* context) noexcept {
+	if (context->QueryService(&overlay) != D2RL::ServiceQueryResult::Success
+		|| !D2RL::HasOverlayServiceField(overlay, D2RL::OverlayServiceRequiredSize)) {
+		return false;
+	}
+
+	const D2RL::Overlay::CallbackRegistration registration {
+		.structSize = D2RL::Overlay::CallbackRegistrationSize,
+		.phase      = D2RL::Overlay::Phase::AfterGameUi,
+		.priority   = 0,
+		.callback   = DrawOverlay,
+	};
+	D2RL::Overlay::CallbackHandle handle = D2RL::Overlay::InvalidCallbackHandle;
+	return overlay->registerFrameCallback(context, &registration, &handle)
+		== D2RL::Overlay::Result::Success;
+}
+```
+
+Higher priority callbacks run first. Equal priorities use registration order.
+The loader removes callbacks when their plugin unloads and restores clip state
+after every callback. This also happens when a callback fails. The V1 service
+cannot capture mouse, keyboard, or controller input. It also does not support
+images, custom shaders, or plugin-owned graphics resources. The loader handles
+graphics device changes itself.
+
 ### Lifecycle
 
 `LifecycleService` sends one `DataTablesLoadedEvent` after every completed
@@ -651,6 +706,30 @@ D2RL::Items::ExistingItemTransactionResult result {
 items->executeExistingItemTransaction(context, &transaction, &result);
 ```
 
+`splitStack` moves part of one stored stack to the empty cursor as one atomic
+operation. The source keeps the same handle and saved identity. The new cursor
+stack receives its own saved identity. The requested quantity must be at least
+one and must leave at least one item in the source stack. Equipment, belt,
+cursor, ground, and detached items are rejected.
+
+This function was appended to the V1 service table. Check its field size before
+calling it so the plugin can still load with an older D2RLoader build.
+
+```cpp
+if (D2RL::HasItemServiceField(items, D2RL::ItemServiceSplitStackFieldEnd)) {
+	const D2RL::Items::SplitStackRequest request {
+		.structSize = D2RL::Items::SplitStackRequestSize,
+		.player     = player,
+		.sourceItem = stack,
+		.quantity   = 5,
+	};
+	D2RL::Items::SplitStackResult result {
+		.structSize = D2RL::Items::SplitStackResultSize,
+	};
+	const auto split = items->splitStack(context, &request, &result);
+}
+```
+
 `editNativeItem` is for changes V1 cannot describe. It requires
 `PluginFlags::NativeHooks` and gives a native pointer to a game callback. The
 pointer expires when the callback returns. D2RLoader does not check or publish
@@ -799,9 +878,14 @@ themselves. D2RLoader removes them when the plugin unloads.
 it. The event contains generation-safe item and player handles, the actual item
 container, the selected cell, keyboard modifiers, and whether the active input
 source is keyboard/mouse or controller. V1 emits `Activate` from proven normal
-inventory, Cube, personal-stash, and custom-page grids. It deliberately excludes
-vendor, trade, corpse, ground, equipment, cursor, belt, and shared-stash paths
-until their native behavior is proven.
+inventory, Cube, personal-stash, custom-page, shared-stash, and belt controls.
+Shared-stash and belt events are opt-in. Set the listener's `containerMask` to
+`DefaultContainerMask` plus the extra container bits you need. A zero mask keeps
+the default inventory, Cube, personal-stash, and custom-page behavior. First
+check that the service table contains `supportedContainerMask`. Then request only
+the extra bits that field reports. Older loaders do not contain this field and
+support only the default containers. Vendor, trade, corpse, ground, equipment,
+and cursor paths remain excluded.
 
 Callbacks run on the UI thread. Higher priority runs first; equal priorities use
 registration order. Return `Continue` to leave the item action alone. Return
@@ -815,6 +899,114 @@ when that plugin unloads. See `item-interactions` for a complete listener.
 range is `Tracked` when it overlaps a plugin patch or hook known to D2RLoader.
 Otherwise it is `Untracked`. The result includes the change type, owner count,
 and plugin id when there is one known owner.
+
+Use `enumerateModificationRanges` when you need the exact changed parts. The
+first call asks for the number of entries. The next call fills the buffer. If
+the number grows between calls, `BufferTooSmall` asks the plugin to resize the
+buffer and try again.
+
+```cpp
+if (!D2RL::HasDiagnosticsServiceField(
+		diagnostics, D2RL::DiagnosticsServiceEnumerateModificationRangesFieldEnd)) {
+	return false;
+}
+
+const uint8_t expected[] { 0x48, 0x89, 0x5C, 0x24, 0x08 };
+const D2RL::Diagnostics::HookQuery query {
+	.structSize   = D2RL::Diagnostics::HookQuerySize,
+	.rva          = 0x00123456,
+	.expected     = expected,
+	.expectedSize = sizeof(expected),
+};
+
+std::vector<D2RL::Diagnostics::ModificationRange> ranges;
+uint32_t rangeCount = 0;
+auto result = diagnostics->enumerateModificationRanges(
+	context, &query, nullptr, 0, &rangeCount);
+while (result == D2RL::Diagnostics::Result::BufferTooSmall) {
+	ranges.resize(rangeCount);
+	result = diagnostics->enumerateModificationRanges(
+		context, &query, ranges.data(), static_cast<uint32_t>(ranges.size()), &rangeCount);
+}
+if (result != D2RL::Diagnostics::Result::Success) {
+	return false;
+}
+ranges.resize(rangeCount);
+```
+
+Each tracked entry names one known patch or hook and its owner. An untracked
+entry covers changed bytes with no known owner. `callThrough` is `Yes` only for
+a loader-managed inline hook with a working pointer to the original function.
+It is `No` when that hook has no working pointer. Byte patches and unknown
+changes report `Unknown`.
+
+### Atomic Patch Transactions
+
+`MutationService` groups byte patches, relative calls or jumps, and inline hooks
+into one transaction. Staging only copies the request. It does not change game
+memory. `commit` first checks every address, expected byte range, overlap, hook
+target, and call-through pointer. It then applies the complete group. If a
+later step fails, D2RLoader restores the earlier changes.
+
+```cpp
+const D2RL::MutationService* mutations = nullptr;
+if (context->QueryService(&mutations) != D2RL::ServiceQueryResult::Success
+	|| !D2RL::HasMutationServiceField(mutations, D2RL::MutationServiceRequiredSize)) {
+	return false;
+}
+
+D2RL::Mutations::TransactionHandle transaction = 0;
+if (mutations->beginTransaction(context, &transaction) != D2RL::Mutations::Result::Success) {
+	return false;
+}
+
+const uint8_t expected[] { 0x74, 0x05 };
+const uint8_t replacement[] { 0x90, 0x90 };
+const D2RL::Mutations::BytePatchRequest patch {
+	.structSize   = D2RL::Mutations::BytePatchRequestSize,
+	.rva          = 0x00123456,
+	.expected     = expected,
+	.expectedSize = sizeof(expected),
+	.bytes        = replacement,
+	.size         = sizeof(replacement),
+};
+D2RL::Mutations::OperationHandle operation = 0;
+if (mutations->stageBytePatch(context, transaction, &patch, &operation) != D2RL::Mutations::Result::Success) {
+	mutations->cancelTransaction(context, transaction);
+	return false;
+}
+
+D2RL::Mutations::CommitResult result {
+	.structSize = D2RL::Mutations::CommitResultSize,
+};
+if (mutations->commit(context, transaction, &result) != D2RL::Mutations::Result::Success) {
+	mutations->cancelTransaction(context, transaction);
+	return false;
+}
+```
+
+The service copies `expected` and `replacement` during the staging call, so the
+arrays may be local variables. Each byte patch must have matching expected and
+replacement sizes. A relative call or jump needs at least 5 bytes. A transaction
+cannot overlap another staged operation or an existing loader-tracked patch.
+
+Inline hooks require `PluginFlags::NativeHooks`. Keep the operation handle from
+`stageInlineHook`, then call `getInlineHookOriginal` after commit succeeds. This
+is the call-through trampoline, which lets the hook call the original function.
+D2RLoader does not publish it during a partly completed commit.
+
+`CommitResult::operation` identifies the operation that failed. The
+`OriginalStateRestored` flag confirms that no part of the transaction remains
+active. `cancelTransaction` discards a transaction that did not commit. A
+successful transaction stays active until the plugin unloads, when D2RLoader
+restores its patches and removes its hooks.
+
+If commit returns `RollbackFailed`, call `cancelTransaction` once more. It makes
+another restore attempt. D2RLoader also retries cleanup when the plugin unloads.
+
+Commit uses one loader lock so loader-managed patches cannot race with one
+another. It does not pause every game thread for the whole operation. Game code
+running at the same moment may briefly see the changes being applied.
 
 ### Game Rules
 

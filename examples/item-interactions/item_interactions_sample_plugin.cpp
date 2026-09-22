@@ -47,9 +47,14 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) 
 	if (!D2RL::HasItemInteractionServiceField(interactions, D2RL::ItemInteractionServiceRequiredSize)) {
 		return false;
 	}
+	const uint32_t containerMask =
+		D2RL::HasItemInteractionServiceField(interactions, D2RL::ItemInteractionServiceSupportedContainerMaskFieldEnd)
+			? interactions->supportedContainerMask
+			: D2RL::ItemInteractions::DefaultContainerMask;
 	const D2RL::ItemInteractions::ItemInteractionListener listener {
-		.structSize = D2RL::ItemInteractions::ItemInteractionListenerSize,
-		.callback   = OnItemInteraction,
+		.structSize    = D2RL::ItemInteractions::ItemInteractionListenerSize,
+		.callback      = OnItemInteraction,
+		.containerMask = containerMask,
 	};
 	D2RL::ItemInteractions::ListenerHandle handle = D2RL::ItemInteractions::InvalidHandle;
 	return interactions->registerListener(context, &listener, &handle) == D2RL::ItemInteractions::Result::Success;

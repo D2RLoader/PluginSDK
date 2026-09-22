@@ -19,7 +19,9 @@
 #include <D2RLPlugin/lifecycle_events.h>
 #include <D2RLPlugin/localization.h>
 #include <D2RLPlugin/logging.h>
+#include <D2RLPlugin/mutations.h>
 #include <D2RLPlugin/network.h>
+#include <D2RLPlugin/overlay.h>
 #include <D2RLPlugin/panels.h>
 #include <D2RLPlugin/patching.h>
 #include <D2RLPlugin/reimplementation_exports.h>
