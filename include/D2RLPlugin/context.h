@@ -248,6 +248,8 @@ struct PluginContext {
 		return PatchWrite(rva, expected, expectedSize, value, sizeof(value));
 	}
 
+	// Both RVAs must be inside the loaded D2R.exe image.
+	// A plugin DLL function or VirtualAlloc relay is not a valid target.
 	[[nodiscard]]
 	auto PatchRel32(uint64_t rva, const void* expected, uint32_t expectedSize, uint64_t targetRva, uint32_t size, Rel32PatchKind kind) const noexcept -> bool {
 		const PatchRel32Fn patch = ApiPatchRel32(GetApi());

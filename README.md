@@ -330,7 +330,9 @@ Update your C++ files and the `.rc` file that holds the plugin's manifest.
 The old names have been removed, so these edits are needed before rebuilding.
 Existing compiled DLLs still use the same data layout, manifest bytes, and
 entry-point names. The plugin ABI stays at **4**.
-Existing service ABI numbers stay at **1**.
+These source-name changes did not change service ABI numbers.
+`LocalizationService::AbiVersion` is 2 in SDK 0.2.0 and 0.3.0. Check each
+service's version in its header.
 
 ## Services
 
@@ -1077,6 +1079,12 @@ range is `Tracked` when it overlaps a plugin patch or hook known to D2RLoader.
 Otherwise it is `Untracked`. The result includes the change type, owner count,
 and plugin id when there is one known owner.
 
+D2RLoader can change native function bytes before plugins load. Other plugins
+can also change them. If expected bytes differ, identify the live code before
+calling or hooking it. `DiagnosticsService` can identify tracked plugin changes.
+An executable address alone does not prove the function's behavior or that a
+hook can safely call through to it.
+
 Use `enumerateModificationRanges` when you need the exact changed parts. The
 first call asks for the number of entries. The next call fills the buffer. If
 the number grows between calls, `BufferTooSmall` asks the plugin to resize the
@@ -1167,10 +1175,20 @@ arrays may be local variables. Each byte patch must have matching expected and
 replacement sizes. A relative call or jump needs at least 5 bytes. A transaction
 cannot overlap another staged operation or an existing loader-tracked patch.
 
+The source and target of a relative call or jump must both be RVAs inside the
+loaded D2R.exe image. This rule applies to `PluginContext::PatchCallRel32`,
+`PluginContext::PatchJmpRel32`, and `MutationService::stageRel32Patch`.
+For example, code at the game module base plus `0x2000` has target RVA `0x2000`.
+A function in a plugin DLL or a `VirtualAlloc` relay is not a valid target.
+D2RLoader 1.3.1 checks this range and rejects targets outside the image.
+
 Inline hooks require `PluginFlags::NativeHooks`. Keep the operation handle from
 `stageInlineHook`, then call `getInlineHookOriginal` after commit succeeds. This
 is the call-through trampoline, which lets the hook call the original function.
 D2RLoader does not publish it during a partly completed commit.
+An inline hook at a function entry receives calls from every caller. If you
+replace a patch at one call site with a function hook, account for the other
+callers too.
 
 `CommitResult::operation` identifies the operation that failed. The
 `OriginalStateRestored` flag confirms that no part of the transaction remains
