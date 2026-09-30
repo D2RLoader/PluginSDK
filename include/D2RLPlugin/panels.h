@@ -51,7 +51,11 @@ enum class PanelFlags : uint32_t {
 	None             = 0,
 	CloseOnEscape    = 0x00000001U,
 	GameplayLeftSlot = 0x00000002U,
+	TextEntry        = 0x00000004U,
 };
+
+// TextEntry suppresses plugin actions and D2R hotkeys while an input text box
+// in this open panel has focus.
 
 enum class ChildLayoutFlags : uint32_t {
 	None              = 0,

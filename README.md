@@ -7,7 +7,7 @@ use D2RLoader's internal code.
 Start with `D2RLPlugin/api.h` and the example closest to what you want to build.
 Most plugins do not need to include each service header separately.
 
-**SDK release: 0.3.0 · Plugin ABI: 4**
+**SDK release: 0.4.0 · Plugin ABI: 4**
 
 The SDK release tells you which headers and build tools you have. The plugin ABI
 is the agreement on data and function calls between a plugin DLL and the loader.
@@ -51,7 +51,7 @@ the map:
 | `shared_events.h` | Shared tooltip and UI-message listeners. |
 | `diagnostics.h` | Detection and ownership reporting for changed executable bytes. |
 | `game_rules.h` | Final socket, stack, and skill-allocation rules. |
-| `http.h` | Asynchronous HTTPS requests with copied inputs and bounded responses. |
+| `http.h` | Asynchronous HTTPS and loopback HTTP requests with copied inputs and bounded responses. |
 | `threads.h` | Queue one task for the UI or the game. |
 | `localization.h` | Copied active UTF-8 text by id or key. |
 | `overlay.h` | Display-only lines, rectangles, and text drawn after the game UI. |
@@ -259,7 +259,7 @@ These versions describe different parts of a plugin build:
 
 | Version | Source | Used for |
 |---|---|---|
-| SDK release version, currently `0.3.0` | `D2RL_SDK_VERSION` in `include/D2RLPlugin/version.h` | Identifies the SDK headers and build tools used to build a plugin. |
+| SDK release version, currently `0.4.0` | `D2RL_SDK_VERSION` in `include/D2RLPlugin/version.h` | Identifies the SDK headers and build tools used to build a plugin. |
 | Plugin ABI version, currently `4` | `D2RL_PLUGIN_ABI_VERSION` in the same header | Identifies the data layout and function calls shared by a plugin DLL and the loader. |
 | Minimum supported plugin ABI, currently `2` | `D2RL_PLUGIN_MIN_ABI_VERSION` in the same header | The oldest plugin ABI the loader accepts. |
 | Service ABI version, such as `EncounterService::AbiVersion = 1` | Each service header | Identifies the data layout and function calls for one service, requested through `QueryService`. |
@@ -279,9 +279,9 @@ before reading newer fields. Check that a function pointer is set before
 calling it. If a required service or field is missing, report the requirement
 and fail to load cleanly. An optional feature can stay disabled.
 
-For an installed SDK package, `find_package(D2RLPlugin 0.3.0 REQUIRED)` accepts
+For an installed SDK package, `find_package(D2RLPlugin 0.4.0 REQUIRED)` accepts
 that release or a later one with the same major number. All `0.x` releases
-share major zero. Use `find_package(D2RLPlugin 0.3.0 EXACT REQUIRED)` to require
+share major zero. Use `find_package(D2RLPlugin 0.4.0 EXACT REQUIRED)` to require
 that specific release. These build-time checks do not check which services
 the running loader provides.
 
@@ -688,6 +688,62 @@ each match. `ItemService::getItemInfo` can refresh one handle later. Normal
 item calls never expose a native pointer. Each call checks the plugin, game
 session, runtime unit id, and item seed again.
 
+`ItemInfo` contains the item code, quality, state, sockets, and affix IDs. If
+you need item-owned stat rolls or a completed runeword's row, check for the
+optional `getItemDetails` field. Call it first with a null stat pointer and
+zero capacity. The returned `statCount` tells you how much space to allocate.
+Call it again with that space. The item can change between the two calls, so
+handle `InvalidArgument` if the second call needs more space.
+
+```cpp
+if (D2RL::HasItemServiceField(items, D2RL::ItemServiceDetailsFieldEnd)) {
+	D2RL::Items::ItemDetails details { .structSize = D2RL::Items::ItemDetailsSize };
+	if (items->getItemDetails(context, item, &details, nullptr, 0) == D2RL::Items::Result::Success) {
+		std::vector<D2RL::Items::ItemStatValue> stats(details.statCount);
+		const auto result = items->getItemDetails(context, item, &details, stats.data(), static_cast<uint32_t>(stats.size()));
+		if (result == D2RL::Items::Result::Success) {
+			// Use details and stats from this call.
+		}
+	}
+}
+```
+
+The stat entries are copies from magic stat lists attached to the item. They
+are not a final effective stat total. Other sources, such as socketed items,
+can add values elsewhere. Each entry keeps its stat ID, layer, value, and
+native list flags. The service includes only lists with flag `0x40` set.
+Repeated IDs remain separate.
+For an inferior item, `lowQualityRecordId` selects a LowQualityItems row.
+For a completed runeword, `runewordRecordId` selects the matching Runes recipe.
+The service also checks its stored name ID. A value of `-1` means the row could
+not be resolved.
+
+For an inventory-style hover, use the optional `getItemTooltip` field. Call it
+on the UI thread with a live item handle from the local player's storage.
+First pass a null output buffer and zero capacity. `BufferTooSmall` returns
+the required byte count, including the null byte. Then pass a large enough
+buffer. The service returns the game's current item text without changing
+the item. For example, a Trade card can use this text as its hover tooltip.
+
+For a catalog item that does not exist in storage, use `getItemPreviewTooltip`.
+It builds and destroys a temporary Chronicle display item. It does not change
+inventory, gameplay items, or unique-drop availability. Call it on the UI thread
+while a local player is available. It uses the same buffer contract as
+`getItemTooltip`. Check `ItemServicePreviewTooltipFieldEnd` before use.
+
+`ItemPreviewSpec` selects the base code, quality, affixes, sockets, and item state.
+Named qualities need the active SetItems or UniqueItems row index. Other
+qualities use `UINT32_MAX` for that field. Affix IDs are one-based within
+MagicPrefix or MagicSuffix, not combined runtime IDs. For example, prefix `1`
+selects the first MagicPrefix record. Zero means no affix.
+
+Optional `ItemPreviewStat` entries replace the total item-owned modifier value
+for one stat and layer. Values use native units. For example, stat `7` with
+value `5120` means +20 life. Unlisted values are native examples, not guaranteed
+purchase rolls. Inferior previews are unsupported. Crafted and superior previews
+need explicit modifiers because the preview does not choose a crafting recipe
+or a QualityItems row.
+
 The service can also register one custom player page. Its width and height must
 be from 1 through 16 because D2S item coordinates use four bits. After D2R uses
 the grid, changing its size returns `Busy`. Restart before testing another size.
@@ -897,6 +953,8 @@ if (status == D2RL::Items::Result::Success) {
 you can request only a prefix or suffix. `ExplicitId` requires that exact side
 and a nonzero combined affix ID. Combined IDs use the same numbering as
 `ItemInfo`: MagicSuffix rows first, then MagicPrefix rows.
+For a completed runeword, `ItemInfo::prefixIds[0]` instead contains its name
+string ID. Do not use that value as an affix ID.
 
 Set `maxPrefixes`, `maxSuffixes`, and `maxAffixes` to zero to use D2R's normal
 limits. A plugin can set smaller values for its own crafting rule. Magic items
@@ -1022,10 +1080,20 @@ callback data pointers or treat channel and peer handles as game pointers. Check
 `InputService` registers named actions, not raw keyboard hooks. They appear in
 D2R's Controls menu and keep saved bindings while the plugin is missing. The
 Controls menu clears conflicts with D2R actions and other plugin actions. Plugin
-actions do not run while chat, another text field, or the binding control is
-active. D2RLoader calls the press and release handlers during input processing.
+actions do not run while chat, a text field in a `TextEntry` plugin panel, or
+the binding control is active. D2RLoader calls the press and release handlers
+during input processing.
 Queue any UI or game work they need. Returning `Handled` consumes the key press.
-Register actions while the plugin loads; D2RLoader removes them when it unloads.
+Register actions while the plugin loads. D2RLoader removes them when it unloads.
+
+Add `PanelFlags::TextEntry` to a panel with an input text box. While that box
+has focus in the open panel, D2RLoader stops plugin actions and D2R hotkeys.
+The panel loses this state when the box loses focus or the panel closes.
+
+For other key controls, register an `InputService` key listener while the plugin
+loads. It receives key down and key up before plugin actions and D2R hotkeys.
+Return `KeyEventResult::Block` to consume a key event. Use
+`HasInputServiceField` before calling the optional listener functions.
 
 ### Shared UI Events
 
@@ -1045,7 +1113,8 @@ appear first when several additions use the same position. Higher priority runs
 first; equal priorities use registration order.
 
 UI-message listeners receive copied target, command, and text values. They may
-consume D2R messages or Widget-service actions before normal panel handling.
+consume D2R messages or widget actions before normal panel handling. Plugin
+targets reach these listeners before D2R can discard an unknown target.
 `CharacterCreate:Create` also reports whether the selected character is
 Hardcore or Softcore; other UI messages report `Unknown`.
 D2RLoader runs both listener types during UI updates. Listeners may unregister
@@ -1210,19 +1279,21 @@ maximum stack size, skill cap, and whether a player can spend a skill point. The
 skill check does not spend the point. Read item and skill limits from a UI or
 queued game callback. `canAllocateSkill` needs a game callback.
 
-### HTTPS Requests
+### HTTP Requests
 
 `HttpService` sends GET, POST, PUT, PATCH, DELETE, and HEAD requests to
-`https://` URLs. `send` copies the URL, headers, and body before returning, then
+`https://` URLs. It also sends HTTP requests to `localhost`, `127.0.0.1`, and
+`[::1]`. `send` copies the URL, headers, and body before it returns. It then
 runs the request on a worker thread. The response callback also runs on that
-worker thread, never the UI or game thread. Queue UI or game work through
-`ThreadService` when a response needs to affect D2R.
+worker thread, never on the UI or game thread. Queue UI or game work through
+`ThreadService` when a response must affect D2R.
 
-Normal certificate and host-name checks stay enabled. Redirects may remain on
-HTTPS but cannot downgrade to HTTP. A transport success may still have an HTTP
-error status such as 404. The response headers, strings, and body are borrowed
-and valid only during the callback. Zero timeout and response-limit fields use
-the documented defaults. `cancel` suppresses a callback that has not started;
+Local HTTP requests do not use a proxy or follow redirects. HTTPS requests keep
+normal certificate and host-name checks. HTTPS redirects can remain on HTTPS.
+They cannot redirect to HTTP. A transport success may still have an HTTP error
+status such as 404. The response headers, strings, and body are borrowed and
+valid only during the callback. Zero timeout and response-limit fields use the
+documented defaults. `cancel` suppresses a callback that has not started.
 D2RLoader also cancels every outstanding request when the plugin unloads.
 
 ### Running Work at the Right Time
@@ -1247,6 +1318,50 @@ visibility or enabled state, and send a normal target/command/text action.
 with a null or small output buffer to get `BufferTooSmall` and the required UTF-8
 byte count. The count includes the trailing null byte. Call it again with a
 large enough buffer. Like the other widget calls, it must run on the UI thread.
+
+`setText` changes a text label and accepts up to 4,095 UTF-8 bytes.
+`getText` reads a label. `setInputText` writes an input box and sends its text
+change message. It accepts up to 4,095 UTF-8 bytes and checks the box's length
+limit. `clearInputText` also clears autocomplete. `focusWidget` puts keyboard
+focus on a visible, active control in an open panel. For example, call
+`clearInputText` after a successful send, then call `focusWidget` when the
+panel opens. `getWidgetState` reads visibility, enabled state, and focus.
+`setWidgetRect` changes local position and size through D2R's layout functions.
+
+Dropdowns, toggle buttons, and sliders have typed get and set calls. Dropdown
+indices start at zero. A slider value must be between its minimum and maximum.
+These setters do not send a UI message.
+
+`setWidgetEventMessage` binds a button click, input change, input Enter, or
+dropdown change to a target and command. Call it after each panel open. Omit
+the matching message field from the layout. A UI message listener receives
+the custom target before D2R handles the message. Consume a plugin message
+after handling it. The dropdown sends its index as binary data, so read it
+with `getDropdownSelection` in the listener.
+
+`setTooltipText` changes the hover text of a focusable widget, such as a
+button. It accepts up to 16,383 UTF-8 bytes.
+For buttons, it updates both enabled and disabled hover text. Empty text clears it.
+`getDropdownSelection` reads a native dropdown's selected state index.
+For states `["All", "Unique"]`, selecting `"Unique"` returns `1`.
+To receive selection changes, omit `onUpdateMessage` from the dropdown layout.
+Open the panel, find the dropdown, and call `setDropdownUpdateMessage` on the UI thread.
+Repeat this call after each open. For example, use target `"MyPlugin"` and
+command `"QualityChanged"`. Register a UI message listener for that pair.
+Both names must be nonempty, null-terminated strings of at most 127 bytes.
+The setter connects the message directly. It does not register names with the
+layout parser, change the selection, or send a message.
+Set custom targets through the widget service after the panel opens. D2R's
+layout parser does not know plugin-defined target names.
+The dropdown sends its selection as binary data, so `UiMessageEvent::text` is null.
+Read the index with `getDropdownSelection` in the listener. Consume the matching
+message to prevent the native panel handler from processing it.
+`setImageSprite` loads a game UI sprite into an `ImageWidget`. It keeps the
+image's proportions and centers it inside a rectangle in parent coordinates.
+For example, a 98 × 98 rune image stays centered in a 128 × 128 card icon.
+Pass a logical path without `.sprite`, such as
+`items\\misc\\rune\\ber_rune`. Check each optional field with
+`HasWidgetServiceField` before use. Call these functions on the UI thread.
 
 ### Localization
 

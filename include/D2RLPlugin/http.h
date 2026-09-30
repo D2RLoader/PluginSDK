@@ -56,9 +56,11 @@ struct Header {
 	const char* value;
 };
 
-// Only https:// URLs are accepted. Zero timeoutMs/maxResponseSize select the
-// defaults above. The body may contain arbitrary bytes. Redirects may stay on
-// HTTPS but are never allowed to downgrade to HTTP.
+// HTTPS URLs are accepted. HTTP URLs are accepted only for localhost, 127.0.0.1,
+// and [::1]. Local HTTP requests do not use a proxy or follow redirects. HTTPS
+// redirects can remain on HTTPS but cannot change to HTTP. Zero timeoutMs uses
+// the default timeout. Zero maxResponseSize uses the default size. The body can
+// contain any bytes.
 struct Request {
 	uint32_t      structSize;
 	uint32_t      flags;

@@ -35,6 +35,7 @@ enum class Result : uint32_t {
 	CallbackFault    = 10,
 	PolicyRejected   = 11,
 	NotAuthoritative = 12,
+	BufferTooSmall   = 13,
 };
 
 enum class ItemServiceCapability : uint64_t {
@@ -201,9 +202,11 @@ struct ItemCreateSpec {
 	ItemDestination     destination;
 };
 
-// This is a copy. quantity is one for a non-stackable item. qualityRecordId is
-// a zero-based SetItems/UniqueItems row, or -1 when there is no such row.
-// prefixIds and suffixIds use the same combined IDs as ItemCreateSpec.
+// This is a copy. quantity is one for a non-stackable item. For Inferior, Set,
+// and Unique items, qualityRecordId is a zero-based row in LowQualityItems,
+// SetItems, and UniqueItems, respectively. Do not use it for other qualities.
+// prefixIds and suffixIds use the same combined IDs as ItemCreateSpec. For a
+// completed runeword, prefixIds[0] instead holds its name string ID.
 // sharedStashPage is UINT32_MAX when the tab is not known.
 struct ItemInfo {
 	uint32_t      structSize;
@@ -232,6 +235,69 @@ struct ItemInfo {
 	uint32_t      prefixIds[3];
 	uint32_t      suffixIds[3];
 };
+
+inline constexpr uint32_t ItemDetailRuneword = 1U << 0U;
+
+// This is one entry from an item-owned magic stat list. It is not the item's
+// final stat total. Several entries can have the same statId and layer.
+struct ItemStatValue {
+	uint32_t statId;
+	uint32_t layer;
+	int32_t  value;
+	uint32_t listFlags;
+};
+
+// Read this with getItemDetails. For Inferior items, lowQualityRecordId is a
+// zero-based LowQualityItems row. For other qualities it is -1. A completed
+// runeword has ItemDetailRuneword set. runewordRecordId is a zero-based Runes
+// row, or -1 if its recipe and stored name ID do not select one row. statCount is the
+// number of item-owned magic stat entries, including repeated stat IDs.
+struct ItemDetails {
+	uint32_t structSize;
+	uint32_t flags;
+	int32_t  lowQualityRecordId;
+	int32_t  runewordRecordId;
+	uint32_t runewordNameId;
+	uint32_t statCount;
+};
+
+// One exact total across the preview's item-owned magic stat lists.
+// Values use native units. For example, MaxHp 5120 means +20 life.
+struct ItemPreviewStat {
+	uint32_t statId;
+	uint32_t layer;
+	int32_t  value;
+};
+
+// Builds a disposable display item, not an inventory item. It does not change
+// gameplay items, unique-drop flags, or player inventory. Unlisted rolls use native
+// preview values and are examples, not a promise of a purchase result.
+// qualityRecordId is a SetItems or UniqueItems row. Use UINT32_MAX otherwise.
+// runewordRecordId is a Runes row, or UINT32_MAX for no runeword.
+// Affixes use one-based IDs within MagicPrefix or MagicSuffix. Zero means none.
+// These differ from ItemCreateSpec's combined IDs. Inferior is unsupported.
+// The stats array overrides modifier totals after native quality and affix properties.
+struct ItemPreviewSpec {
+	uint32_t               structSize;
+	uint32_t               flags;
+	uint32_t               code;
+	Quality                quality;
+	uint32_t               qualityRecordId;
+	uint32_t               runewordRecordId;
+	uint32_t               itemLevel;
+	uint32_t               stateFlags;
+	uint32_t               socketCount;
+	uint32_t               prefixIds[3];
+	uint32_t               suffixIds[3];
+	uint32_t               statCount;
+	const ItemPreviewStat* stats;
+};
+
+inline constexpr uint32_t ItemPreviewSpecSize = static_cast<uint32_t>(sizeof(ItemPreviewSpec));
+inline constexpr uint32_t MaxItemPreviewStats = 128;
+static_assert(sizeof(ItemPreviewStat) == 12);
+static_assert(offsetof(ItemPreviewSpec, stats) == 64);
+static_assert(sizeof(ItemPreviewSpec) == 72);
 
 // fields chooses what changes. The public handle and native item stay intact.
 // Turning ethereal off is unsupported because D2R's native 3/2 base-stat
@@ -448,6 +514,9 @@ inline constexpr uint32_t ItemCreateSpecRequiredSize                   = static_
 inline constexpr uint32_t ItemCreateSpecSharedStashPageFieldEnd        = static_cast<uint32_t>(offsetof(ItemCreateSpec, destination) + ItemDestinationSharedStashPageFieldEnd);
 inline constexpr uint32_t ItemInfoSize                                 = static_cast<uint32_t>(sizeof(ItemInfo));
 inline constexpr uint32_t ItemInfoRequiredSize                         = ItemInfoSize;
+inline constexpr uint32_t ItemStatValueSize                            = static_cast<uint32_t>(sizeof(ItemStatValue));
+inline constexpr uint32_t ItemDetailsSize                              = static_cast<uint32_t>(sizeof(ItemDetails));
+inline constexpr uint32_t ItemDetailsRequiredSize                      = ItemDetailsSize;
 inline constexpr uint32_t ItemEditSize                                 = static_cast<uint32_t>(sizeof(ItemEdit));
 inline constexpr uint32_t ItemEditRequiredSize                         = ItemEditSize;
 inline constexpr uint32_t TransactionSize                              = static_cast<uint32_t>(sizeof(Transaction));
@@ -471,6 +540,19 @@ inline constexpr uint32_t AffixAugmentResultSize                       = static_
 inline constexpr uint32_t AffixAugmentResultRequiredSize               = AffixAugmentResultSize;
 
 using GetItemInfoFn                    = Result(__cdecl*)(const PluginContext* context, ItemHandle item, ItemInfo* info) noexcept;
+// Pass a null stats pointer and zero capacity to read statCount first. A later
+// call with enough capacity copies every entry. If capacity is too small, the
+// call returns InvalidArgument and still writes the required statCount. Both
+// calls must use a UI or game callback. An item can change between calls.
+using GetItemDetailsFn                 = Result(__cdecl*)(const PluginContext* context, ItemHandle item, ItemDetails* details, ItemStatValue* stats, uint32_t capacity) noexcept;
+// Builds the game's current item tooltip on the UI thread. This is read-only.
+// Pass a null or small buffer first to get BufferTooSmall and requiredSize.
+// The byte count includes the trailing null. The item handle must still refer
+// to a live item owned by the local player or its stash.
+using GetItemTooltipFn                 = Result(__cdecl*)(const PluginContext* context, ItemHandle item, char* output, uint32_t outputSize, uint32_t* requiredSize) noexcept;
+// UI thread only. Uses the same UTF-8 buffer contract as getItemTooltip.
+// The preview is destroyed before return. No ItemHandle is created.
+using GetItemPreviewTooltipFn          = Result(__cdecl*)(const PluginContext* context, const ItemPreviewSpec* spec, char* output, uint32_t outputSize, uint32_t* requiredSize) noexcept;
 // Mutations require the authoritative game thread. Queue them with
 // ThreadService::runOnGameThread. Local games and TCP/IP hosts are
 // authoritative; remote clients receive NotAuthoritative. Normal operations do
@@ -504,6 +586,8 @@ static_assert(std::is_standard_layout_v<PropertySpec> && std::is_trivially_copya
 static_assert(std::is_standard_layout_v<ItemDestination> && std::is_trivially_copyable_v<ItemDestination>);
 static_assert(std::is_standard_layout_v<ItemCreateSpec> && std::is_trivially_copyable_v<ItemCreateSpec>);
 static_assert(std::is_standard_layout_v<ItemInfo> && std::is_trivially_copyable_v<ItemInfo>);
+static_assert(std::is_standard_layout_v<ItemStatValue> && std::is_trivially_copyable_v<ItemStatValue>);
+static_assert(std::is_standard_layout_v<ItemDetails> && std::is_trivially_copyable_v<ItemDetails>);
 static_assert(std::is_standard_layout_v<ItemEdit> && std::is_trivially_copyable_v<ItemEdit>);
 static_assert(std::is_standard_layout_v<TransactionInput> && std::is_trivially_copyable_v<TransactionInput>);
 static_assert(std::is_standard_layout_v<Transaction> && std::is_trivially_copyable_v<Transaction>);
@@ -526,6 +610,8 @@ static_assert(ItemCreateSpecRequiredSize == 120);
 static_assert(ItemCreateSpecSharedStashPageFieldEnd == 124);
 static_assert(sizeof(ItemCreateSpec) == 128);
 static_assert(sizeof(ItemInfo) == 120);
+static_assert(sizeof(ItemStatValue) == 16);
+static_assert(sizeof(ItemDetails) == 24);
 static_assert(sizeof(ItemEdit) == 32);
 static_assert(sizeof(TransactionInput) == 16);
 static_assert(offsetof(Transaction, inputs) == 24);
@@ -576,13 +662,21 @@ struct ItemService {
 	// This field is optional. HasItemServiceCapability checks its size and bit.
 	uint64_t                                capabilities;
 	Items::AugmentItemAffixFn               augmentItemAffix;
+	// This field is optional. Check ItemServiceDetailsFieldEnd before calling it.
+	Items::GetItemDetailsFn                 getItemDetails;
+	// This field is optional. Check ItemServiceTooltipFieldEnd before calling it.
+	Items::GetItemTooltipFn                 getItemTooltip;
+	Items::GetItemPreviewTooltipFn          getItemPreviewTooltip;
 };
 
-inline constexpr uint32_t ItemServiceSize                 = static_cast<uint32_t>(sizeof(ItemService));
-inline constexpr uint32_t ItemServiceRequiredSize         = static_cast<uint32_t>(offsetof(ItemService, executeExistingItemTransaction) + sizeof(Items::ExecuteExistingItemTransactionFn));
-inline constexpr uint32_t ItemServiceSplitStackFieldEnd   = static_cast<uint32_t>(offsetof(ItemService, splitStack) + sizeof(Items::SplitStackFn));
-inline constexpr uint32_t ItemServiceCapabilitiesFieldEnd = static_cast<uint32_t>(offsetof(ItemService, capabilities) + sizeof(uint64_t));
-inline constexpr uint32_t ItemServiceAffixAugmentFieldEnd = static_cast<uint32_t>(offsetof(ItemService, augmentItemAffix) + sizeof(Items::AugmentItemAffixFn));
+inline constexpr uint32_t ItemServiceSize                   = static_cast<uint32_t>(sizeof(ItemService));
+inline constexpr uint32_t ItemServiceRequiredSize           = static_cast<uint32_t>(offsetof(ItemService, executeExistingItemTransaction) + sizeof(Items::ExecuteExistingItemTransactionFn));
+inline constexpr uint32_t ItemServiceSplitStackFieldEnd     = static_cast<uint32_t>(offsetof(ItemService, splitStack) + sizeof(Items::SplitStackFn));
+inline constexpr uint32_t ItemServiceCapabilitiesFieldEnd   = static_cast<uint32_t>(offsetof(ItemService, capabilities) + sizeof(uint64_t));
+inline constexpr uint32_t ItemServiceAffixAugmentFieldEnd   = static_cast<uint32_t>(offsetof(ItemService, augmentItemAffix) + sizeof(Items::AugmentItemAffixFn));
+inline constexpr uint32_t ItemServiceDetailsFieldEnd        = static_cast<uint32_t>(offsetof(ItemService, getItemDetails) + sizeof(Items::GetItemDetailsFn));
+inline constexpr uint32_t ItemServiceTooltipFieldEnd        = static_cast<uint32_t>(offsetof(ItemService, getItemTooltip) + sizeof(Items::GetItemTooltipFn));
+inline constexpr uint32_t ItemServicePreviewTooltipFieldEnd = static_cast<uint32_t>(offsetof(ItemService, getItemPreviewTooltip) + sizeof(Items::GetItemPreviewTooltipFn));
 
 inline constexpr auto HasItemServiceField(const ItemService* service, uint32_t fieldEndOffset) noexcept -> bool {
 	return service != nullptr && service->serviceVersion == ItemService::AbiVersion && service->serviceSize >= fieldEndOffset;
@@ -604,10 +698,15 @@ static_assert(offsetof(ItemService, executeExistingItemTransaction) == 56);
 static_assert(offsetof(ItemService, splitStack) == 64);
 static_assert(offsetof(ItemService, capabilities) == 72);
 static_assert(offsetof(ItemService, augmentItemAffix) == 80);
+static_assert(offsetof(ItemService, getItemDetails) == 88);
+static_assert(offsetof(ItemService, getItemTooltip) == 96);
 static_assert(ItemServiceRequiredSize == 64);
 static_assert(ItemServiceSplitStackFieldEnd == 72);
 static_assert(ItemServiceCapabilitiesFieldEnd == 80);
 static_assert(ItemServiceAffixAugmentFieldEnd == 88);
-static_assert(sizeof(ItemService) == 88);
+static_assert(ItemServiceDetailsFieldEnd == 96);
+static_assert(ItemServiceTooltipFieldEnd == 104);
+static_assert(offsetof(ItemService, getItemPreviewTooltip) == 104);
+static_assert(sizeof(ItemService) == 112);
 
 }
