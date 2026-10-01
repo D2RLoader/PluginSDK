@@ -269,6 +269,10 @@ struct ItemPreviewStat {
 	int32_t  value;
 };
 
+// Show the same stat ranges as holding Ctrl while hovering an identified item.
+// This flag also works when the player's range setting is disabled.
+inline constexpr uint32_t ItemPreviewShowStatRanges = 1U << 0U;
+
 // Builds a disposable display item, not an inventory item. It does not change
 // gameplay items, unique-drop flags, or player inventory. Unlisted rolls use native
 // preview values and are examples, not a promise of a purchase result.
@@ -277,6 +281,7 @@ struct ItemPreviewStat {
 // Affixes use one-based IDs within MagicPrefix or MagicSuffix. Zero means none.
 // These differ from ItemCreateSpec's combined IDs. Inferior is unsupported.
 // The stats array overrides modifier totals after native quality and affix properties.
+// flags accepts zero or ItemPreviewShowStatRanges. Other bits are invalid.
 struct ItemPreviewSpec {
 	uint32_t               structSize;
 	uint32_t               flags;

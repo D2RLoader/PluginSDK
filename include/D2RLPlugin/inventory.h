@@ -122,8 +122,9 @@ constexpr auto ItemTypeFourCCEquals(ItemTypeFourCC lhs, ItemTypeFourCC rhs) noex
 	return lhs.value[0] == rhs.value[0] && lhs.value[1] == rhs.value[1] && lhs.value[2] == rhs.value[2] && lhs.value[3] == rhs.value[3];
 }
 
-// D2RLoader owns saved-item placement for this page. It restores supported items
-// or fails the load before stock code can silently discard them.
+// D2RLoader restores supported saved items. For a missing page plugin, it copies
+// the original offline save before it removes those items. Other restore errors
+// stop the character load.
 inline constexpr uint32_t PlayerPageConfigurationInfoFlagSaveLoadProtected = 1U << 0U;
 
 struct PlayerPageRegistration {

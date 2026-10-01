@@ -678,7 +678,7 @@ and required `structSize` fields.
 
 ### Inventory and Custom Player Pages
 
-Use `InventoryService` to find existing items or own one custom player page.
+Use `InventoryService` to find existing items or register custom player pages.
 
 Existing items use safe handles owned by the plugin. Get the local player from a
 UI callback, then inspect the cursor, equipment, belt, inventory, cube, trade,
@@ -744,11 +744,84 @@ purchase rolls. Inferior previews are unsupported. Crafted and superior previews
 need explicit modifiers because the preview does not choose a crafting recipe
 or a QualityItems row.
 
-The service can also register one custom player page. Its width and height must
-be from 1 through 16 because D2S item coordinates use four bits. After D2R uses
-the grid, changing its size returns `Busy`. Restart before testing another size.
-A protected page either restores its supported saved items or stops the load
-before stock code can discard them.
+Retail saves allow one custom player page. If another plugin registers a page,
+registration returns `Conflict` and the loader shows an error notification.
+Retail saves do not record which plugin owns that page. If a different plugin
+takes its slot later, it can receive the old page's items.
+Extended saves allow up to 247 custom player pages. The last page is 252 because
+D2R stores the page number plus three in one byte for grid links. Each page
+has its own handle and grid. Its width and height must be from 1 through 16
+because D2S item coordinates use four bits. After D2R uses a grid, changing
+its size returns `Busy`. Restart before testing another size.
+
+Register each page with a different, stable `logicalId`. This example creates
+two 10-by-4 grids during plugin load. Keep the returned handles until unload.
+
+```cpp
+#include <D2RLPlugin/context.h>
+#include <D2RLPlugin/inventory.h>
+#include <array>
+
+auto RegisterPages(const D2RL::PluginContext* ctx,
+	std::array<D2RL::Inventory::PageRegistrationHandle, 2>* pages) noexcept -> bool {
+	if (ctx == nullptr || pages == nullptr) return false;
+	*pages = {};
+
+	const D2RL::InventoryService* service = nullptr;
+	if (ctx->QueryService(&service) != D2RL::ServiceQueryResult::Success) return false;
+
+	if (!D2RL::HasInventoryServiceField(service, D2RL::InventoryServiceConfigurePlayerPageFieldEnd)) return false;
+
+	if (service->registerPlayerPage == nullptr || service->unregisterPlayerPage == nullptr || service->configurePlayerPage == nullptr) return false;
+
+	constexpr std::array ids { "materials", "trophies" };
+	for (std::size_t index = 0; index < ids.size(); ++index) {
+		D2RL::Inventory::PlayerPageRegistration registration {
+			.structSize = D2RL::Inventory::PlayerPageRegistrationSize,
+			.logicalId  = ids[index],
+		};
+		auto result = service->registerPlayerPage(ctx, &registration, &(*pages)[index]);
+		if (result == D2RL::Inventory::Result::Success) {
+			D2RL::Inventory::PlayerPageConfiguration grid {
+				.structSize = D2RL::Inventory::PlayerPageConfigurationSize,
+				.width      = 10,
+				.height     = 4,
+			};
+			result = service->configurePlayerPage(ctx, (*pages)[index], &grid);
+		}
+		if (result == D2RL::Inventory::Result::Success) continue;
+
+		for (auto handle : *pages) {
+			if (handle != D2RL::Inventory::InvalidHandle)
+				(void)service->unregisterPlayerPage(ctx, handle);
+		}
+		*pages = {};
+		return false;
+	}
+	return true;
+}
+```
+
+In retail mode, the second registration returns `Conflict`. In extended mode,
+both pages can register. Call `configurePlayerPageItemPolicy` for each handle
+before items can enter either page. Unregister both handles when the plugin
+unloads.
+
+The loader uses the plugin scope, plugin ID, and `logicalId` to identify a page
+in an extended save. Keep these values stable between plugin releases. Page
+numbers can change when plugins load in a different order. If an offline
+character has items from a missing page plugin, the loader first copies the
+original character save into the `Recovery` folder under `D2RLoader Backups`.
+The character then loads without those items and shows a warning. If the copy
+fails, the load stops. Other item placement errors also stop the load.
+
+This change uses extended character version `0x44520006` and item version `6`.
+Earlier extended saves (`0x44520005`, item version `5`) still load. They use
+the new format after the next save. Older custom-page items do not identify
+their plugin. If a character has these items, keep only its original custom
+page active until you load and save it once. The loader stops the load and
+shows an error if more than one custom page is active. Retail saves keep their
+format.
 
 `executeLocalPlayerMove` supports `CursorToPage` and `PageToCursor`. A put uses
 `x` and `y` as the item's top-left cell. A take may use any occupied cell. The
@@ -764,7 +837,8 @@ saved-item recovery.
 
 Charm activation is separate from item admission. Choose `StockInventoryOnly`,
 `PlayerPageOnly`, or `StockInventoryAndPlayerPage`. Configure it while the page
-is staged during plugin load. After a committed move or save restore, D2RCore
+is staged during plugin load. Only one registered page can select a policy other
+than `StockInventoryOnly`. After a committed move or save restore, D2RCore
 reruns the normal inventory update so stats, skills, auras, states, and
 requirements are refreshed. There is no pre-save veto yet, so use a disposable
 character while testing a new page provider.
