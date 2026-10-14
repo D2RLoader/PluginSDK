@@ -324,7 +324,7 @@ static_assert(offsetof(D2RL::ThreadService, runOnUiThread) == 8);
 static_assert(offsetof(D2RL::ThreadService, runOnGameThread) == 16);
 static_assert(D2RL::ThreadServiceRequiredSize == 24);
 
-static_assert(sizeof(D2RL::WidgetService) == 200);
+static_assert(sizeof(D2RL::WidgetService) == 208);
 static_assert(alignof(D2RL::WidgetService) == 8);
 static_assert(static_cast<uint32_t>(D2RL::WidgetService::Id) == 12);
 static_assert(D2RL::WidgetService::AbiVersion == 1);
@@ -354,6 +354,7 @@ static_assert(offsetof(D2RL::WidgetService, setToggleState) == 168);
 static_assert(offsetof(D2RL::WidgetService, getSliderValue) == 176);
 static_assert(offsetof(D2RL::WidgetService, setSliderValue) == 184);
 static_assert(offsetof(D2RL::WidgetService, setWidgetEventMessage) == 192);
+static_assert(offsetof(D2RL::WidgetService, getWidgetScreenRect) == 200);
 static_assert(D2RL::WidgetServiceRequiredSize == 64);
 static_assert(D2RL::WidgetServiceSetTextFieldEnd == 72);
 static_assert(D2RL::WidgetServiceSetTooltipTextFieldEnd == 80);
@@ -361,6 +362,7 @@ static_assert(D2RL::WidgetServiceSetImageSpriteFieldEnd == 88);
 static_assert(D2RL::WidgetServiceDropdownSelectionFieldEnd == 96);
 static_assert(D2RL::WidgetServiceSetDropdownUpdateMessageFieldEnd == 104);
 static_assert(D2RL::WidgetServiceSetWidgetEventMessageFieldEnd == 200);
+static_assert(D2RL::WidgetServiceGetWidgetScreenRectFieldEnd == 208);
 
 static int failures = 0;
 

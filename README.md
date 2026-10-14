@@ -1402,6 +1402,16 @@ focus on a visible, active control in an open panel. For example, call
 panel opens. `getWidgetState` reads visibility, enabled state, and focus.
 `setWidgetRect` changes local position and size through D2R's layout functions.
 
+`getWidgetScreenRect` reads the widget's screen position and scaled size.
+It includes parent positions, anchors, and UI scaling. Hidden widgets can also
+be measured. Compare two widgets with this function. Do not mix these values
+with local rectangles or overlay canvas coordinates.
+
+For example, show a wider left panel only when its right edge stays left of the
+inventory's left edge.
+Keep space between the frames. Check `WidgetServiceGetWidgetScreenRectFieldEnd`
+with `HasWidgetServiceField` before calling this optional function.
+
 Dropdowns, toggle buttons, and sliders have typed get and set calls. Dropdown
 indices start at zero. A slider value must be between its minimum and maximum.
 These setters do not send a UI message.

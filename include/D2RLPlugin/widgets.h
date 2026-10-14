@@ -40,6 +40,14 @@ struct Rect {
 	int32_t height;
 };
 
+// Screen coordinates include parent positions, anchors, and UI scaling.
+struct ScreenRect {
+	float x;
+	float y;
+	float width;
+	float height;
+};
+
 struct State {
 	bool visible;
 	bool enabled;
@@ -90,6 +98,7 @@ using SetToggleStateFn           = Result(__cdecl*)(const PluginContext* context
 using GetSliderValueFn           = Result(__cdecl*)(const PluginContext* context, WidgetHandle handle, int32_t* value) noexcept;
 using SetSliderValueFn           = Result(__cdecl*)(const PluginContext* context, WidgetHandle handle, int32_t value) noexcept;
 using SetWidgetEventMessageFn    = Result(__cdecl*)(const PluginContext* context, WidgetHandle handle, EventKind event, const char* target, const char* command) noexcept;
+using GetWidgetScreenRectFn      = Result(__cdecl*)(const PluginContext* context, WidgetHandle handle, ScreenRect* rect) noexcept;
 
 // Every widget call must run on the UI thread, normally through
 // ThreadService::runOnUiThread. findWidget searches below its parent handle.
@@ -123,6 +132,11 @@ using SetWidgetEventMessageFn    = Result(__cdecl*)(const PluginContext* context
 // clearInputText also clears autocomplete. focusWidget requires an open, active
 // panel and a visible, active focusable widget in that panel.
 // setWidgetRect changes local bounds through D2R's native layout setters.
+// getWidgetScreenRect reads scaled bounds in native UI screen coordinates.
+// Compare two widgets with this function. Do not mix these bounds with local
+// Rect values or overlay canvas coordinates. Hidden widgets can also be measured.
+// For example, show a wider left panel only when its right edge stays left of
+// the inventory's left edge. Leave space between the two frames.
 // Dropdown indices start at zero. Setters for dropdown, toggle, and slider do
 // not send a UI message. A slider value must be within its min/max range.
 // setWidgetEventMessage routes a button click, input change, input Enter, or
@@ -135,6 +149,8 @@ static_assert(std::is_standard_layout_v<Rect> && std::is_trivially_copyable_v<Re
 static_assert(std::is_standard_layout_v<State> && std::is_trivially_copyable_v<State>);
 static_assert(std::is_standard_layout_v<UiAction> && std::is_trivially_copyable_v<UiAction>);
 static_assert(sizeof(Rect) == 16);
+static_assert(std::is_standard_layout_v<ScreenRect> && std::is_trivially_copyable_v<ScreenRect>);
+static_assert(sizeof(ScreenRect) == 16);
 static_assert(sizeof(State) == 3);
 static_assert(sizeof(EventKind) == sizeof(uint32_t));
 static_assert(sizeof(UiAction) == 32);
@@ -171,6 +187,7 @@ struct WidgetService {
 	Widgets::GetSliderValueFn           getSliderValue;
 	Widgets::SetSliderValueFn           setSliderValue;
 	Widgets::SetWidgetEventMessageFn    setWidgetEventMessage;
+	Widgets::GetWidgetScreenRectFn      getWidgetScreenRect;
 };
 
 inline constexpr uint32_t WidgetServiceSize                             = static_cast<uint32_t>(sizeof(WidgetService));
@@ -192,6 +209,7 @@ inline constexpr uint32_t WidgetServiceSetToggleStateFieldEnd           = static
 inline constexpr uint32_t WidgetServiceGetSliderValueFieldEnd           = static_cast<uint32_t>(offsetof(WidgetService, getSliderValue) + sizeof(Widgets::GetSliderValueFn));
 inline constexpr uint32_t WidgetServiceSetSliderValueFieldEnd           = static_cast<uint32_t>(offsetof(WidgetService, setSliderValue) + sizeof(Widgets::SetSliderValueFn));
 inline constexpr uint32_t WidgetServiceSetWidgetEventMessageFieldEnd    = static_cast<uint32_t>(offsetof(WidgetService, setWidgetEventMessage) + sizeof(Widgets::SetWidgetEventMessageFn));
+inline constexpr uint32_t WidgetServiceGetWidgetScreenRectFieldEnd      = static_cast<uint32_t>(offsetof(WidgetService, getWidgetScreenRect) + sizeof(Widgets::GetWidgetScreenRectFn));
 
 inline auto HasWidgetServiceField(const WidgetService* service, uint32_t fieldEndOffset) noexcept -> bool {
 	return service != nullptr && service->serviceVersion == WidgetService::AbiVersion && service->serviceSize >= fieldEndOffset;
@@ -204,6 +222,7 @@ static_assert(offsetof(WidgetService, setTooltipText) == 72);
 static_assert(offsetof(WidgetService, setImageSprite) == 80);
 static_assert(offsetof(WidgetService, getDropdownSelection) == 88);
 static_assert(offsetof(WidgetService, setDropdownUpdateMessage) == 96);
-static_assert(sizeof(WidgetService) == 200);
+static_assert(offsetof(WidgetService, getWidgetScreenRect) == 200);
+static_assert(sizeof(WidgetService) == 208);
 
 }

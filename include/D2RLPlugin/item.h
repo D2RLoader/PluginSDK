@@ -270,7 +270,9 @@ struct ItemPreviewStat {
 };
 
 // Show the same stat ranges as holding Ctrl while hovering an identified item.
-// This flag also works when the player's range setting is disabled.
+// This flag alone selects ranges. Ctrl, controller input, and the player's
+// range setting do not change preview formatting. Without this flag, previews
+// show item values.
 inline constexpr uint32_t ItemPreviewShowStatRanges = 1U << 0U;
 
 // Builds a disposable display item, not an inventory item. It does not change
@@ -554,6 +556,7 @@ using GetItemDetailsFn                 = Result(__cdecl*)(const PluginContext* c
 // Pass a null or small buffer first to get BufferTooSmall and requiredSize.
 // The byte count includes the trailing null. The item handle must still refer
 // to a live item owned by the local player or its stash.
+// Shows item values. Ctrl and controller input do not change this snapshot.
 using GetItemTooltipFn                 = Result(__cdecl*)(const PluginContext* context, ItemHandle item, char* output, uint32_t outputSize, uint32_t* requiredSize) noexcept;
 // UI thread only. Uses the same UTF-8 buffer contract as getItemTooltip.
 // The preview is destroyed before return. No ItemHandle is created.
